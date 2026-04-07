@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark theme judicial aesthetic */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 96%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 199 89% 48%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 47% 14%;
+    --muted-foreground: 215 20% 55%;
+    --border: 222 30% 18%;
+    --radius: 0.75rem;
+    --input: 222 30% 18%;
+  --ring: 160 84% 39%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --accent: 199 89% 48%;
+  --accent-foreground: 210 40% 98%;
+    /* Custom tokens for LegalEdge effects */
+    --glow-emerald: 160 84% 39%;
+    --glow-blue: 199 89% 48%;
+    --timeline-active: 160 84% 45%;
+    --timeline-inactive: 222 30% 25%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    /* Allow body to grow with content and enable scrolling */
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin: 0;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Layout Helper to prevent content jumping */
+  .container-max {
+    @apply max-w-[1400px] mx-auto px-6 min-h-screen flex flex-col;
+  }
+
+  /* Judicial Glowing Card Effect */
+  .card-glow {
+    @apply relative overflow-hidden;
+    box-shadow: 0 0 0 1px hsl(var(--border)), 0 4px 24px -4px hsl(var(--glow-emerald) / 0.15);
+  }
+
+  .card-glow:hover::before {
+    content: '';
+    @apply absolute inset-0 opacity-100 transition-opacity duration-300 pointer-events-none;
+    background: radial-gradient(600px circle at 50% 50%, hsl(var(--glow-emerald) / 0.08), transparent 40%);
+  }
+
+  /* Status Badges */
+  .badge-hearing { @apply bg-sky-500/20 text-sky-400 border border-sky-500/30; }
+  .badge-active { @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30; }
+
+  /* Judicial Timeline UI */
+  .timeline-node { @apply relative flex items-center gap-4; }
+  .timeline-node::before {
+    content: '';
+    @apply absolute left-5 top-12 w-0.5 h-full -translate-x-1/2 bg-muted;
+  }
+  .timeline-node-active::before {
+    @apply bg-gradient-to-b from-primary to-muted;
+  }
+}
+
+@layer utilities {
+  /* Emerald-to-Blue Gradient for Headings */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+  }
+
+  /* Subtle UI pattern */
+  .bg-pattern {
+    background-image: 
+      radial-gradient(circle at 25% 25%, hsl(var(--glow-emerald) / 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, hsl(var(--glow-blue) / 0.03) 0%, transparent 50%);
+  }
+}
+
+/* Custom Emerald Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #030712; }
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: 20px;
+}
+::-webkit-scrollbar-thumb:hover { background: #10b981; }

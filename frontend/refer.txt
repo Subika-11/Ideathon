@@ -1,0 +1,8 @@
+cd ../backend
+python -m venv myenv
+myenv\Scripts\activate
+python main.py
+
+
+cd frontend
+npm run dev
