@@ -13,6 +13,7 @@ import LocateKiosk from './components/LocateKiosk';
 import { changeLanguage } from './translate';
 import i18n from './i18n';
 import RemindersPage from './components/RemaindersPage';
+import { isLoggedIn } from './utils/api';
 
 /* ---------------- TYPES ---------------- */
 
@@ -60,7 +61,7 @@ export default function App() {
   useEffect(() => {
     const hash = window.location.hash.replace('#', '') as Page;
     if (hash) {
-      setCurrentPage(hash);
+      checkAuthAndNavigate(hash);
     }
   }, []);
 
@@ -69,10 +70,7 @@ export default function App() {
     const onPopState = (e: PopStateEvent) => {
       const page = e.state?.page as Page | undefined;
       if (page) {
-        setCurrentPage(page);
-        if (e.state?.caseId) {
-          setCurrentCaseId(e.state.caseId);
-        }
+        checkAuthAndNavigate(page, e.state?.caseId);
       }
     };
 
@@ -80,12 +78,36 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  /* ---------------- PROTECTED ROUTES CHECK ---------------- */
+  const checkAuthAndNavigate = (targetPage: Page, caseId?: string) => {
+    const protectedPages: Page[] = ['home', 'tracking', 'case', 'reminders'];
+    
+    if (protectedPages.includes(targetPage) && !isLoggedIn()) {
+      // Redirect to login if trying to access a protected page without auth
+      setCurrentPage('login');
+      window.history.replaceState({ page: 'login' }, '', '#login');
+      return;
+    }
+
+    setCurrentPage(targetPage);
+    if (caseId) {
+      setCurrentCaseId(caseId);
+    }
+  };
+
   /* ---------------- NAVIGATE ---------------- */
   const navigate = (page: Page, state: Record<string, any> = {}) => {
     if (isTourActive) return;
 
-    window.history.pushState({ page, ...state }, '', `#${page}`);
-    setCurrentPage(page);
+    const protectedPages: Page[] = ['home', 'tracking', 'case', 'reminders'];
+    let targetPage = page;
+
+    if (protectedPages.includes(page) && !isLoggedIn()) {
+      targetPage = 'login';
+    }
+
+    window.history.pushState({ page: targetPage, ...state }, '', `#${targetPage}`);
+    setCurrentPage(targetPage);
 
     if (state.caseId) {
       setCurrentCaseId(state.caseId);

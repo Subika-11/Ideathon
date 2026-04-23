@@ -1,41 +1,74 @@
-import random
+"""
+services/otp_service.py — OTP generation, storage, and verification.
+
+Uses SQLAlchemy instead of raw sqlite3 cursor.
+Generates 4-digit OTPs with 5-minute expiry.
+"""
+
+import secrets
 from datetime import datetime, timedelta
-from app.db.database import cursor, conn
+from sqlalchemy.orm import Session
+from typing import Tuple, Optional
 
-def generate_otp():
-    return str(random.randint(1000, 9999))
+from app.database.models import OTPVerification
 
-def save_otp(phone: str, otp: str):
-    expires_at = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
 
-    # delete old OTP
-    cursor.execute("DELETE FROM otp_verifications WHERE phone=?", (phone,))
+def generate_otp() -> str:
+    """Generate a cryptographically secure 4-digit OTP."""
+    return str(secrets.randbelow(9000) + 1000)  # Always 4 digits: 1000–9999
 
-    cursor.execute(
-        "INSERT INTO otp_verifications (phone, otp, expires_at, verified) VALUES (?, ?, ?, ?)",
-        (phone, otp, expires_at, False)
+
+def save_otp(db: Session, phone: str, otp: str) -> None:
+    """
+    Save a new OTP for the given phone number.
+    Deletes any existing unverified OTPs for the same phone first
+    to prevent OTP flooding.
+    """
+    # Delete old unverified OTPs for this phone
+    db.query(OTPVerification).filter(
+        OTPVerification.phone == phone,
+        OTPVerification.verified == False,
+    ).delete()
+
+    # Create new OTP record with 5-minute expiry
+    new_otp = OTPVerification(
+        phone=phone,
+        otp=otp,
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        verified=False,
     )
-    conn.commit()
+    db.add(new_otp)
+    db.commit()
 
-def verify_otp(phone: str, otp: str):
-    cursor.execute(
-        "SELECT id, expires_at FROM otp_verifications WHERE phone=? AND otp=? AND verified=0",
-        (phone, otp)
+
+def verify_otp(db: Session, phone: str, otp: str) -> Tuple[bool, Optional[str]]:
+    """
+    Verify an OTP for the given phone number.
+
+    Returns:
+        (True, None) if OTP is valid
+        (False, error_message) if OTP is invalid, expired, or not found
+    """
+    # Find unverified OTP matching phone + code
+    record = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.phone == phone,
+            OTPVerification.otp == otp,
+            OTPVerification.verified == False,
+        )
+        .first()
     )
-    record = cursor.fetchone()
 
     if not record:
-        return False, "Invalid OTP"
+        return False, "Invalid OTP. Please check and try again."
 
-    otp_id, expires_at = record
+    # Check expiry
+    if datetime.utcnow() > record.expires_at:
+        return False, "OTP has expired. Please request a new one."
 
-    if datetime.fromisoformat(expires_at) < datetime.utcnow():
-        return False, "OTP expired"
-
-    cursor.execute(
-        "UPDATE otp_verifications SET verified=1 WHERE id=?",
-        (otp_id,)
-    )
-    conn.commit()
+    # Mark as verified
+    record.verified = True
+    db.commit()
 
     return True, None

@@ -18,7 +18,6 @@ import {
 
 type SubStep = 'MODE_SELECT' | 'REGISTRATION' | 'OTP' | 'NFC_TAP' | 'NFC_ISSUE';
 
-// ── Already-registered popup state ───────────────────────────────────────────
 interface AlreadyRegisteredInfo {
   name: string;
   hasCard: boolean;
@@ -31,8 +30,8 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
   const [timer, setTimer] = useState(30);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: '', sub: '' });
+  const [rfidStatus, setRfidStatus] = useState<'idle' | 'scanning' | 'success'>('idle');
 
-  // Already-registered popup — separate from the success popup
   const [alreadyRegistered, setAlreadyRegistered] = useState<AlreadyRegisteredInfo | null>(null);
 
   const [isSendingOTP, setIsSendingOTP] = useState(false);
@@ -53,10 +52,58 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
   useEffect(() => {
     let interval: any;
     if (subStep === 'OTP' && timer > 0) {
-      interval = setInterval(() => setTimer((t: number) => t - 1  ), 1000);
+      interval = setInterval(() => setTimer((t: number) => t - 1), 1000);
     }
     return () => clearInterval(interval);
   }, [subStep, timer]);
+
+  // Auto-start RFID scanning when NFC_TAP screen is shown
+  useEffect(() => {
+    if (subStep === 'NFC_TAP') {
+      setRfidStatus('scanning');
+      setNfcError('');
+    } else {
+      setRfidStatus('idle');
+    }
+  }, [subStep]);
+
+  // Poll /check-rfid every 1.5s while scanning
+  useEffect(() => {
+    if (rfidStatus !== 'scanning') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('http://localhost:8000/check-rfid');
+        const data = await res.json();
+
+        if (data.status === 'detected') {
+          clearInterval(interval);
+          setRfidStatus('success');
+          setIsCheckingCard(true);
+
+          const result = await lookupUserByNfcUid(data.uid);
+          setIsCheckingCard(false);
+
+          if (!result.success || !result.user) {
+            setNfcError('Card not recognised. Please register as a new user.');
+            setRfidStatus('scanning'); // resume scanning
+            return;
+          }
+
+          setFormData(prev => ({ ...prev, name: result.user!.name }));
+          triggerSuccess(
+            'CARD DETECTED',
+            `Hello, ${result.user.name}. Access granted.`,
+            'COMPLETE'
+          );
+        }
+      } catch {
+        // Backend unreachable — keep polling silently
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [rfidStatus]);
 
   const triggerSuccess = (title: string, sub: string, nextStep: SubStep | 'COMPLETE') => {
     setSuccessMessage({ title, sub });
@@ -73,7 +120,6 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
 
   const handleLocateKiosk = () => onNavigate('locate');
 
-  // ── SEND OTP — duplicate check runs first, OTP only sent if clean ────────
   const handleRequestOTP = async () => {
     setSendError('');
     setIsSendingOTP(true);
@@ -101,7 +147,6 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
     }
   };
 
-  // ── VERIFY OTP → SAVE PROFILE → ASSIGN NFC UID ───────────────────────────
   const handleVerifyOTP = async () => {
     setOtpError('');
     const enteredOTP = otp.join('');
@@ -143,7 +188,7 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
       return;
     }
 
-    setSavedUserId(profileResult.userId);
+    setSavedUserId(String(profileResult.userId));
 
     const uid = generatePlaceholderNfcUid();
     setIssuedNfcUid(uid);
@@ -161,23 +206,7 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
     setIsSendingOTP(false);
   };
 
-  // ── EXISTING USER: NFC TAP ────────────────────────────────────────────────
-  const handleNFCTap = async () => {
-    setNfcError('');
-    setIsCheckingCard(true);
-    const PLACEHOLDER_UID = 'AA:BB:CC:DD';
-    const result = await lookupUserByNfcUid(PLACEHOLDER_UID);
-    setIsCheckingCard(false);
-
-    if (!result.success || !result.user) {
-      setFormData(prev => ({ ...prev, name: 'Demo User' }));
-      triggerSuccess('CARD MATCHED', 'Hello, Demo User. Access granted.', 'COMPLETE');
-      return;
-    }
-
-    setFormData(prev => ({ ...prev, name: result.user!.name }));
-    triggerSuccess('CARD MATCHED', `Hello, ${result.user.name}. Access granted.`, 'COMPLETE');
-  };
+  const handleNFCTap = async () => {};
 
   const isFormValid =
     formData.name &&
@@ -265,6 +294,7 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
                   onClick={() => {
                     setAlreadyRegistered(null);
                     setSubStep('NFC_TAP');
+                    // rfidStatus will be set to 'scanning' by the subStep useEffect
                   }}
                   className="w-full py-4 bg-emerald-500 text-black font-black rounded-2xl uppercase text-[11px] tracking-widest hover:bg-emerald-400 transition-all flex items-center justify-center gap-2"
                 >
@@ -373,31 +403,101 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
 
               {/* NFC TAP */}
               {subStep === 'NFC_TAP' && (
-                <motion.div key="nfc_tap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center space-y-10 py-6">
-                  <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-                    <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute inset-0 rounded-full bg-emerald-500/5 border border-emerald-500/20" />
-                    <ShieldCheck size={80} className={`transition-all duration-300 ${isCheckingCard ? 'text-emerald-400' : 'text-emerald-500/40'}`} />
+                <motion.div key="nfc_tap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center space-y-8 py-6">
+
+                  {/* Animated scanner circle */}
+                  <div className="relative w-52 h-52 mx-auto flex items-center justify-center">
+                    {/* Outer pulse rings */}
+                    {rfidStatus === 'scanning' && (
+                      <>
+                        <motion.div
+                          animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
+                          transition={{ repeat: Infinity, duration: 2, delay: 0 }}
+                          className="absolute inset-0 rounded-full border-2 border-emerald-500/40"
+                        />
+                        <motion.div
+                          animate={{ scale: [1, 1.35, 1], opacity: [0.3, 0, 0.3] }}
+                          transition={{ repeat: Infinity, duration: 2, delay: 0.4 }}
+                          className="absolute inset-4 rounded-full border border-emerald-400/30"
+                        />
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.1, 0.5] }}
+                          transition={{ repeat: Infinity, duration: 2, delay: 0.8 }}
+                          className="absolute inset-8 rounded-full border border-emerald-300/20"
+                        />
+                      </>
+                    )}
+                    {/* Icon */}
+                    <motion.div
+                      animate={rfidStatus === 'scanning' ? { scale: [1, 1.05, 1] } : {}}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                      className={`w-32 h-32 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                        rfidStatus === 'success'
+                          ? 'bg-emerald-500/20 border-emerald-500'
+                          : isCheckingCard
+                          ? 'bg-emerald-500/10 border-emerald-400/50'
+                          : 'bg-emerald-500/5 border-emerald-500/20'
+                      }`}
+                    >
+                      {isCheckingCard ? (
+                        <Loader2 size={48} className="text-emerald-400 animate-spin" />
+                      ) : (
+                        <ShieldCheck
+                          size={48}
+                          className={`transition-all duration-300 ${
+                            rfidStatus === 'success' ? 'text-emerald-400' : 'text-emerald-500/60'
+                          }`}
+                        />
+                      )}
+                    </motion.div>
                   </div>
-                  <div className="space-y-4">
-                    <h2 className="text-3xl font-black uppercase italic tracking-tighter">TAP <span className="text-emerald-500">IDENTITY CARD</span></h2>
+
+                  {/* Text */}
+                  <div className="space-y-3">
+                    <h2 className="text-3xl font-black uppercase italic tracking-tighter">
+                      TAP <span className="text-emerald-500">IDENTITY CARD</span>
+                    </h2>
                     <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest leading-relaxed px-6">
-                      Hold your issued Legal Identity Card against the scanner to continue.
+                      {isCheckingCard
+                        ? 'Verifying your card…'
+                        : rfidStatus === 'scanning'
+                        ? 'Hold your issued Legal Identity Card against the scanner'
+                        : 'Card detected!'}
                     </p>
                   </div>
+
+                  {/* Live status badge */}
+                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+                    isCheckingCard
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                      : rfidStatus === 'scanning'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                  }`}>
+                    <motion.div
+                      animate={{ opacity: rfidStatus === 'scanning' && !isCheckingCard ? [1, 0.2, 1] : 1 }}
+                      transition={{ repeat: Infinity, duration: 1 }}
+                      className={`w-2 h-2 rounded-full ${
+                        isCheckingCard ? 'bg-amber-400' : 'bg-emerald-400'
+                      }`}
+                    />
+                    {isCheckingCard ? 'Checking card…' : rfidStatus === 'scanning' ? 'Scanner active — waiting for card' : 'Card scanned!'}
+                  </div>
+
+                  {/* Error */}
                   {nfcError && (
                     <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                       <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
                       <p className="text-red-400 text-[11px] font-bold">{nfcError}</p>
                     </div>
                   )}
+
+                  {/* Back to menu */}
                   <button
-                    onClick={handleNFCTap}
-                    disabled={isCheckingCard}
-                    className="w-full py-5 bg-emerald-500 text-black font-black rounded-[2rem] uppercase text-[12px] tracking-widest flex items-center justify-center gap-2 disabled:opacity-60"
+                    onClick={() => setSubStep('MODE_SELECT')}
+                    className="w-full py-4 bg-white/5 border border-white/10 text-slate-400 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all"
                   >
-                    {isCheckingCard
-                      ? <><Loader2 size={16} className="animate-spin" /> Checking card...</>
-                      : 'Simulate Card Tap'}
+                    ← Back to menu
                   </button>
                 </motion.div>
               )}
@@ -591,7 +691,7 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
                       <span className="text-white underline decoration-emerald-500 underline-offset-4">Dispenser Slot</span> below.
                     </div>
                     {savedUserId && (
-                      <p className="text-[9px] text-slate-600 font-mono">Profile saved · ID: {savedUserId.slice(0, 8)}…</p>
+                      <p className="text-[9px] text-slate-600 font-mono">Profile saved · ID: {String(savedUserId).slice(0, 8)}…</p>
                     )}
                   </div>
                   <button

@@ -12,10 +12,18 @@ dist
 dist-ssr
 .vite
 coverage
+__pycache__/
+*.py[cod]
+*$py.class
+backend/myenv/
+backend/venv/
+backend/env/
 
 # Local env
 *.local
 .env
+.env.*
+!.env.example
 
 # Editor / OS
 .vscode/*
@@ -27,6 +35,9 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+*.db
+*.sqlite3
 
-# .env
-VITE_API_URL=http://localhost:8000
+# Arduino
+build/
+.arduino/

@@ -1,14 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+// src/utils/cases.ts — Case search utility (now routes through backend API)
+//
+// This file used to query Supabase directly. It now delegates to the
+// centralized API client which calls the FastAPI backend.
+
+import { searchCaseByCnr as apiSearchCase } from './api';
 import type { CaseData, TimelineEvent, Reminder } from '@/types/case';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
-// ── SEARCH CASE BY CNR ────────────────────────────────────────────────────────
-// Queries the cases table and its related hearings.
-// Returns null if no case matches the CNR — the UI shows "not found" in that case.
+/**
+ * Search for a case by CNR number through the backend API.
+ * Returns structured data matching the CaseData/TimelineEvent/Reminder types.
+ */
 export async function searchCaseByCnr(cnr: string): Promise<{
   found: boolean;
   caseData?: CaseData;
@@ -16,72 +17,46 @@ export async function searchCaseByCnr(cnr: string): Promise<{
   reminders?: Reminder[];
   error?: string;
 }> {
-  // Fetch the case row
-  const { data: caseRow, error: caseError } = await supabase
-    .from('cases')
-    .select('*')
-    .eq('cnr', cnr.toUpperCase())
-    .maybeSingle();
+  const result = await apiSearchCase(cnr);
 
-  if (caseError) {
-    console.error('Case lookup error:', caseError);
-    return { found: false, error: 'Could not search records. Please try again.' };
+  if (!result.found || !result.caseData) {
+    return {
+      found: false,
+      error: result.error ?? 'No case found for this CNR number.',
+    };
   }
 
-  if (!caseRow) {
-    return { found: false, error: 'No case found for this CNR number.' };
-  }
-
-  // Fetch hearings for this case ordered chronologically
-  const { data: hearingRows, error: hearingError } = await supabase
-    .from('hearings')
-    .select('*')
-    .eq('case_id', caseRow.id)
-    .order('created_at', { ascending: true });
-
-  if (hearingError) {
-    console.error('Hearings lookup error:', hearingError);
-    return { found: false, error: 'Could not load case timeline. Please try again.' };
-  }
-
-  // Map the DB row to the CaseData shape the components expect
+  // Map backend response to frontend type shapes
   const caseData: CaseData = {
-    cnr: caseRow.cnr,
-    title: caseRow.title,
-    petitioner: caseRow.petitioner,
-    respondent: caseRow.respondent,
-    status: caseRow.status,
-    courtName: caseRow.court_name,
-    state: caseRow.state ?? 'Tamil Nadu',
-    district: caseRow.district ?? 'Coimbatore',
-    nextHearingDate: caseRow.next_hearing_date ?? 'To be scheduled',
-    presidingBench: caseRow.presiding_bench ?? 'To be assigned',
+    cnr: result.caseData.cnr,
+    title: result.caseData.title,
+    petitioner: result.caseData.petitioner,
+    respondent: result.caseData.respondent,
+    status: result.caseData.status as CaseData['status'],
+    courtName: result.caseData.courtName,
+    state: result.caseData.state ?? 'Tamil Nadu',
+    district: result.caseData.district ?? 'Coimbatore',
+    nextHearingDate: result.caseData.nextHearingDate ?? 'To be scheduled',
+    presidingBench: result.caseData.presidingBench ?? 'To be assigned',
   };
 
-  // Map hearing rows to TimelineEvent shape
-  const timelineEvents: TimelineEvent[] = (hearingRows ?? []).map((h) => ({
-    type: h.event_type as TimelineEvent['type'],
-    title: h.title,
-    date: h.hearing_date,
-    status: h.status as TimelineEvent['status'],
-    description: h.description ?? undefined,
-  }));
-
-  // Build reminders from upcoming / active hearings
-  // Only hearings with status 'active' or 'pending' and a real date become reminders
-  const reminders: Reminder[] = (hearingRows ?? [])
-    .filter((h) => h.status !== 'completed' && h.hearing_date !== 'Pending')
-    .map((h) => ({
-      type: h.event_type === 'hearing' || h.event_type === 'scheduled'
-        ? 'hearing'
-        : h.event_type === 'evidence'
-        ? 'document'
-        : 'meeting',
+  const timelineEvents: TimelineEvent[] = (result.timelineEvents ?? []).map(
+    (h: any) => ({
+      type: h.type as TimelineEvent['type'],
       title: h.title,
-      date: h.hearing_date,
+      date: h.date,
+      status: h.status as TimelineEvent['status'],
       description: h.description ?? undefined,
-      urgent: h.status === 'active',
-    }));
+    })
+  );
+
+  const reminders: Reminder[] = (result.reminders ?? []).map((r: any) => ({
+    type: r.type as Reminder['type'],
+    title: r.title,
+    date: r.date,
+    description: r.description ?? undefined,
+    urgent: r.urgent ?? false,
+  }));
 
   return { found: true, caseData, timelineEvents, reminders };
 }

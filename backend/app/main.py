@@ -1,167 +1,153 @@
-# backend/main.py
-from fastapi import FastAPI, HTTPException
+"""
+main.py — LegalEdge FastAPI Application Entry Point.
+
+This is the single source of truth for the FastAPI app instance.
+It configures:
+  - CORS middleware (origins from .env)
+  - Request logging middleware
+  - Global exception handlers (400, 401, 404, 500)
+  - All API routers
+  - Database table creation on startup
+"""
+
+import logging
+import time
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional
-import random
-import string
-from datetime import datetime, timedelta
-import os
-from fastapi import FastAPI
-from app.routes import auth
+from fastapi.responses import JSONResponse
 
-app = FastAPI()
+from app.config import settings
+from app.database import engine, Base
+from app.database.models import (
+    User, OTPVerification, Case, Hearing, Reminder, Consultation, ConsultationMessage
+)
 
-app.include_router(auth.router, prefix="/auth")
-# ---------- simple in-memory stores (replace with your DB later) ----------
-otp_store: dict[str, dict] = {}   # phone -> {otp, expires_at, verified}
-users_store: dict[str, dict] = {} # phone -> {id, name, dob, gender, phone, aadhaar_last4, nfc_uid}
-users_by_id: dict[str, dict] = {} # id -> user
+# Import all routers
+from app.routers import auth, cases, reminders, chat, users
+from app.routers import rfid as rfid_router
+from app.routers.rfid import start_rfid_reader
 
-# ---------- app ----------
-app = FastAPI(title="LegalEdge API")
+# ── Logging Setup ─────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s │ %(levelname)-7s │ %(name)s │ %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("legaledge")
 
+
+# ── Lifespan — runs on startup and shutdown ───────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Startup: Create all database tables if they don't exist.
+    Shutdown: Clean up resources.
+    """
+    logger.info("🚀 Creating database tables...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ Database tables ready")
+    logger.info(f"🌐 CORS origins: {settings.CORS_ORIGINS}")
+    # Start ESP32 RFID reader background thread
+    start_rfid_reader()
+    logger.info("📡 RFID serial reader started")
+    logger.info("=" * 60)
+    logger.info("  LegalEdge API is running!")
+    logger.info("  Docs: http://localhost:8000/docs")
+    logger.info("=" * 60)
+    yield
+    logger.info("🛑 LegalEdge API shutting down")
+
+
+# ── FastAPI App Instance ──────────────────────────────────────────────────────
+app = FastAPI(
+    title="LegalEdge API",
+    description="Backend API for the LegalEdge Digital Justice Platform",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+
+# ── CORS Middleware ───────────────────────────────────────────────────────────
+# Allows the React frontend (localhost:5173) to make requests to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------- models ----------
-class SendOTPRequest(BaseModel):
-    phone: str
 
-class VerifyOTPRequest(BaseModel):
-    phone: str
-    otp: str
+# ── Request Logging Middleware ────────────────────────────────────────────────
+# Logs every request with method, path, status code, and response time
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration_ms = (time.time() - start_time) * 1000
 
-class SaveProfileRequest(BaseModel):
-    name: str
-    dob: str
-    gender: str
-    phone: str
-    aadhaar: str
-
-class UpdateNFCRequest(BaseModel):
-    user_id: str
-    nfc_uid: str
-
-class LookupNFCRequest(BaseModel):
-    nfc_uid: str
-
-# ---------- helpers ----------
-def generate_otp() -> str:
-    return str(random.randint(1000, 9999))
-
-def generate_uid() -> str:
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-
-def send_sms(phone: str, otp: str) -> bool:
-    """
-    Replace this stub with your SMS provider (Twilio, AWS SNS, etc.)
-    For now it just prints the OTP to the console.
-    """
-    print(f"[SMS] Sending OTP {otp} to +91{phone}")
-    return True
-
-# =========================================================================
-# ROUTES
-# =========================================================================
-
-# --- Check if already registered ---
-@app.get("/auth/check/{phone}")
-def check_registered(phone: str):
-    user = users_store.get(phone)
-    if not user:
-        return {"registered": False}
-    return {
-        "registered": True,
-        "name": user["name"],
-        "hasCard": bool(user.get("nfc_uid")),
-    }
-
-# --- Send OTP ---
-@app.post("/auth/send-otp")
-def send_otp(body: SendOTPRequest):
-    if not body.phone.isdigit() or len(body.phone) != 10:
-        raise HTTPException(400, "Please enter a valid 10-digit phone number.")
-    
-    otp = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
-    otp_store[body.phone] = {"otp": otp, "expires_at": expires_at, "verified": False}
-
-    sent = send_sms(body.phone, otp)
-    if not sent:
-        raise HTTPException(500, "Could not send SMS. Please check your number and try again.")
-
-    return {"success": True}
-
-# --- Verify OTP ---
-@app.post("/auth/verify-otp")
-def verify_otp(body: VerifyOTPRequest):
-    if len(body.otp) != 4:
-        raise HTTPException(400, "Please enter the complete 4-digit OTP.")
-
-    record = otp_store.get(body.phone)
-    if not record or record["otp"] != body.otp or record["verified"]:
-        raise HTTPException(400, "Wrong OTP. Please check and try again.")
-
-    if datetime.utcnow() > record["expires_at"]:
-        raise HTTPException(400, "OTP has expired. Please request a new one.")
-
-    otp_store[body.phone]["verified"] = True
-    return {"success": True}
-
-# --- Save profile ---
-@app.post("/auth/save-profile")
-def save_profile(body: SaveProfileRequest):
-    # Race-condition guard
-    if body.phone in users_store:
-        existing = users_store[body.phone]
-        return {"success": False, "alreadyRegistered": True, "existingName": existing["name"]}
-
-    user_id = generate_uid()
-    user = {
-        "id": user_id,
-        "name": body.name,
-        "dob": body.dob,
-        "gender": body.gender,
-        "phone": body.phone,
-        "aadhaar_last4": body.aadhaar[-4:],
-        "nfc_uid": None,
-    }
-    users_store[body.phone] = user
-    users_by_id[user_id] = user
-
-    return {"success": True, "userId": user_id}
-
-# --- Update NFC UID ---
-@app.post("/auth/update-nfc")
-def update_nfc(body: UpdateNFCRequest):
-    user = users_by_id.get(body.user_id)
-    if not user:
-        raise HTTPException(404, "User not found.")
-    user["nfc_uid"] = body.nfc_uid
-    users_store[user["phone"]]["nfc_uid"] = body.nfc_uid
-    return {"success": True}
-
-# --- Lookup by NFC UID ---
-@app.post("/auth/lookup-nfc")
-def lookup_nfc(body: LookupNFCRequest):
-    user = next(
-        (u for u in users_store.values() if u.get("nfc_uid") == body.nfc_uid),
-        None
+    logger.info(
+        f"{request.method} {request.url.path} → {response.status_code} "
+        f"({duration_ms:.0f}ms)"
     )
-    if not user:
-        raise HTTPException(404, "Card not recognised. Please register as a new user.")
+
+    return response
+
+
+# ── Global Exception Handlers ────────────────────────────────────────────────
+
+@app.exception_handler(400)
+async def bad_request_handler(request: Request, exc):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": "Bad request. Please check your input."},
+    )
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": "Resource not found."},
+    )
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error. Please try again later."},
+    )
+
+
+# ── Register All Routers ─────────────────────────────────────────────────────
+app.include_router(auth.router)           # /api/auth/*
+app.include_router(cases.router)          # /api/cases/*
+app.include_router(reminders.router)      # /api/reminders/*
+app.include_router(chat.router)           # /api/chat/*
+app.include_router(users.router)          # /api/users/*
+app.include_router(rfid_router.router)    # /check-rfid
+
+
+# ── Health Check ──────────────────────────────────────────────────────────────
+@app.get("/api/health", tags=["System"])
+def health_check():
+    """Health check endpoint — used to verify the API is running."""
     return {
-        "success": True,
-        "user": {
-            "id": user["id"],
-            "name": user["name"],
-            "phone": user["phone"],
-            "gender": user["gender"],
-        }
+        "status": "healthy",
+        "app": "LegalEdge API",
+        "version": "2.0.0",
+    }
+
+
+# ── Root Redirect ─────────────────────────────────────────────────────────────
+@app.get("/", tags=["System"])
+def root():
+    """Root endpoint — redirects users to the API documentation."""
+    return {
+        "message": "LegalEdge API v2.0 — Visit /docs for API documentation",
+        "docs": "/docs",
     }

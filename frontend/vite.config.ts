@@ -10,13 +10,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  
+
   server: {
     proxy: {
+      // Forward all /api/* requests to the FastAPI backend
+      // The backend already has /api prefix on all routes, so NO rewrite needed
       "/api": {
         target: "http://localhost:8000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
