@@ -1,0 +1,52 @@
+
+<link rel="stylesheet" href="/leaflet/leaflet.css"/>
+<div id="map" style="width:100%;height:600px;border-radius:var(--border-radius-lg);overflow:hidden;border:0.5px solid var(--color-border-tertiary);"></div>
+
+<script src="/leaflet/leaflet.js"></script>
+<script>
+const map = L.map('map',{
+  zoomControl: true,
+  minZoom: 8,
+  maxZoom: 12
+}).setView([10.98,77.25],9);L.tileLayer('/tiles/{z}/{x}/{y}.png', {
+  maxZoom: 12,
+  minZoom: 8,
+  attribution: '',
+  errorTileUrl: '' // prevents broken tiles
+}).addTo(map);
+
+function makePin(label){
+  return L.divIcon({
+    className:'',
+    html:`<div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="background:#fff;border:1.5px solid #c0392b;border-radius:4px;padding:2px 6px;font-size:10.5px;font-weight:600;color:#c0392b;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);max-width:140px;text-align:center;line-height:1.3;">${label}</div>
+      <svg width="14" height="20" viewBox="0 0 14 20" style="margin-top:-1px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))">
+        <path d="M7 0C3.13 0 0 3.13 0 7c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335"/>
+        <circle cx="7" cy="7" r="2.8" fill="#fff"/>
+      </svg>
+    </div>`,
+    iconSize:[150,60],
+    iconAnchor:[75,58],
+    popupAnchor:[0,-60]
+  });
+}
+
+const locs=[
+  {name:'Collectorate Building\nGopalapuram',lat:11.0001505,lng:76.9672861},
+  {name:'Taluk Office\nPollachi',lat:10.6604498,lng:77.0076156},
+  {name:'Taluk Office\nMettupalayam',lat:11.3101675,lng:76.9491601},
+  {name:'Taluk Office\nSulur',lat:11.02961,lng:77.1224732},
+  {name:'Taluk Office\nAnnur',lat:11.2402556,lng:77.1057329},
+  {name:'Periyar Nagar\nKinathukadavu',lat:10.8171704,lng:77.0185866},
+  {name:'Combined Court Campus\nTiruppur',lat:11.0830103,lng:77.3397414},
+  {name:'Taluk Office Complex\nUdumalpet',lat:10.584355,lng:77.2451806},
+  {name:'Sub Court Complex\nDharapuram',lat:10.7328541,lng:77.5293817},
+  {name:'Combined Court Complex\nPalladam',lat:11.0150,lng:77.2850},
+  {name:'Combined Court Complex\nKangeyam',lat:10.9995675,lng:77.5638049},
+  {name:'Court Complex\nAvinashi',lat:11.202257,lng:77.2591099},
+];
+
+locs.forEach(loc=>{
+  L.marker([loc.lat,loc.lng],{icon:makePin(loc.name.replace('\n','<br>'))}).addTo(map);
+});
+</script>
