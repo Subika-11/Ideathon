@@ -52,3 +52,11 @@ backend/env/
 # Arduino
 build/
 .arduino/
+
+
+__pycache__/
+*.pyc
+app.db
+
+frontend/.env
+backend/.env

@@ -299,12 +299,11 @@ const OFFLINE_AREAS = [
 // The demo key ('AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY') is intentionally
 // NOT used as a fallback — it is domain-restricted and 403s on localhost.
 
-const _DEMO_KEY = 'AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY';
 const _RAW_KEY = (import.meta as any)?.env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
-// Non-null only when a real, non-demo key is explicitly provided
+// Non-null only when a real key is explicitly provided
 const GOOGLE_MAPS_KEY: string | null =
-  _RAW_KEY && _RAW_KEY !== _DEMO_KEY && _RAW_KEY !== 'YOUR_API_KEY_HERE'
+  _RAW_KEY && _RAW_KEY !== 'YOUR_API_KEY_HERE'
     ? _RAW_KEY
     : null;
 
