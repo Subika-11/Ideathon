@@ -73,7 +73,7 @@ export default function LoginPage({ onSuccess, onBack, onNavigate }: any) {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('http://localhost:8000/check-rfid');
+        const res = await fetch('http://10.10.166.122:8000/check-rfid');
         const data = await res.json();
 
         if (data.status === 'detected') {
