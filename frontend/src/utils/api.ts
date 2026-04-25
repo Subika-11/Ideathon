@@ -7,7 +7,7 @@
 //   - Typed request/response helpers
 //   - Error handling with user-friendly messages
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://10.10.166.122:8000';
 
 // ── Token Management ─────────────────────────────────────────────────────────
 

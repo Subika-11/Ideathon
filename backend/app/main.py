@@ -27,7 +27,7 @@ from app.database.models import (
 # Import all routers
 from app.routers import auth, cases, reminders, chat, users
 from app.routers import rfid as rfid_router
-from app.routers.rfid import start_rfid_reader
+from app.routers.rfid import start_rfid_reader, stop_rfid_reader
 
 # ── Logging Setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
     logger.info("  Docs: http://localhost:8000/docs")
     logger.info("=" * 60)
     yield
+    stop_rfid_reader()
     logger.info("🛑 LegalEdge API shutting down")
 
 
