@@ -34,11 +34,22 @@ def send_sms(phone: str, otp: str) -> bool:
         from twilio.rest import Client
 
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        message = client.messages.create(
-            body=f"[LegalEdge] Your OTP is: {otp}. Valid for 5 minutes.",
-            from_=settings.TWILIO_PHONE_NUMBER,
-            to=f"+91{phone}",
-        )
+        
+        # Use Messaging SID if available, otherwise fallback to Phone Number
+        message_args = {
+            "body": f"[LegalEdge] Your OTP is: {otp}. Valid for 5 minutes.",
+            "to": f"+91{phone}"
+        }
+        
+        if settings.TWILIO_MESSAGING_SID:
+            message_args["messaging_service_sid"] = settings.TWILIO_MESSAGING_SID
+        elif settings.TWILIO_PHONE_NUMBER:
+            message_args["from_"] = settings.TWILIO_PHONE_NUMBER
+        else:
+            raise ValueError("Neither TWILIO_MESSAGING_SID nor TWILIO_PHONE_NUMBER is configured.")
+
+        message = client.messages.create(**message_args)
+        
         logger.info(f"SMS sent to +91{phone} | SID: {message.sid}")
         return True
 
