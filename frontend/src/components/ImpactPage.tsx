@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Navigation from './Navigation';
+import { useTranslation } from 'react-i18next';
 
 type Page = 'home' | 'kiosk' | 'features' | 'tracking' | 'impact';
 
@@ -41,6 +42,7 @@ function useReveal() {
 }
 
 export default function ImpactPage({ onNavigate }: ImpactPageProps) {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200">
       <Navigation currentPage="impact" onNavigate={onNavigate} />
@@ -59,6 +61,7 @@ export default function ImpactPage({ onNavigate }: ImpactPageProps) {
 /* ---------- SECTIONS ---------- */
 
 function Header() {
+  const { t } = useTranslation();
   const { ref, visible } = useReveal();
 
   return (
@@ -73,24 +76,24 @@ function Header() {
       <h1 className="text-5xl font-black tracking-tight mb-4
         bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400
         text-transparent bg-clip-text">
-        Societal Impact
+        {t('impact.hero_title')}
       </h1>
       <p className="text-lg text-slate-400 max-w-3xl mx-auto leading-relaxed">
-        LegalEdge delivers accessible, transparent justice infrastructure
-        for communities traditionally excluded from the system.
+        {t('impact.hero_sub')}
       </p>
     </div>
   );
 }
 
 function Metrics() {
+  const { t } = useTranslation();
   const { ref, visible } = useReveal();
 
   const metrics = [
-    { value: '700M+', label: 'Rural citizens', color: 'emerald' },
-    { value: '4.5 Cr+', label: 'Pending cases', color: 'blue' },
-    { value: '22+', label: 'Languages supported', color: 'amber' },
-    { value: '24/7', label: 'Kiosk access', color: 'rose' },
+    { value: '700M+', label: t('impact.metrics.rural'), color: 'emerald' },
+    { value: '4.5 Cr+', label: t('impact.metrics.pending'), color: 'blue' },
+    { value: '22+', label: t('impact.metrics.languages'), color: 'amber' },
+    { value: '24/7', label: t('impact.metrics.access'), color: 'rose' },
   ];
 
   return (
@@ -118,32 +121,33 @@ function Metrics() {
 }
 
 function WhoBenefits() {
+  const { t } = useTranslation();
   const { ref, visible } = useReveal();
 
   const benefits = [
     {
       icon: <Users />,
       color: 'emerald',
-      title: 'Rural & Digitally Excluded',
-      desc: 'Access justice without smartphones or internet.',
+      title: t('impact.who_benefits.rural_title'),
+      desc: t('impact.who_benefits.rural_sub'),
     },
     {
       icon: <Scale />,
       color: 'blue',
-      title: 'Women & Vulnerable Groups',
-      desc: 'Trusted updates and legal guidance.',
+      title: t('impact.who_benefits.women_title'),
+      desc: t('impact.who_benefits.women_sub'),
     },
     {
       icon: <Users />,
       color: 'amber',
-      title: 'Elderly & Differently-Abled',
-      desc: 'Simple, accessible interfaces.',
+      title: t('impact.who_benefits.elderly_title'),
+      desc: t('impact.who_benefits.elderly_sub'),
     },
     {
       icon: <Globe />,
       color: 'rose',
-      title: 'Judicial Institutions',
-      desc: 'Reduced delays and higher trust.',
+      title: t('impact.who_benefits.judicial_title'),
+      desc: t('impact.who_benefits.judicial_sub'),
     },
   ];
 
@@ -154,7 +158,7 @@ function WhoBenefits() {
         ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
     >
       <h2 className="text-3xl font-bold text-white mb-12 text-center">
-        Who Benefits
+        {t('impact.who_benefits.title')}
       </h2>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -182,6 +186,7 @@ function WhoBenefits() {
 }
 
 function WhyItMatters() {
+  const { t } = useTranslation();
   const { ref, visible } = useReveal();
 
   return (
@@ -195,12 +200,10 @@ function WhyItMatters() {
       <div className="rounded-[2.9rem] bg-[#060c18] p-16 text-center">
         <Award className="w-14 h-14 mx-auto mb-6 text-cyan-400" />
         <h2 className="text-3xl font-black text-white mb-4">
-          Why LegalEdge Matters
+          {t('impact.matters.title')}
         </h2>
         <p className="text-slate-400 max-w-3xl mx-auto leading-relaxed">
-          LegalEdge is justice infrastructure — combining offline access,
-          AI assistance, and tamper-proof records to empower citizens
-          and strengthen the judicial ecosystem.
+          {t('impact.matters.sub')}
         </p>
       </div>
     </div>
@@ -208,6 +211,7 @@ function WhyItMatters() {
 }
 
 function Mission() {
+  const { t } = useTranslation();
   const { ref, visible } = useReveal();
 
   return (
@@ -219,15 +223,14 @@ function Mission() {
     >
       <TrendingUp className="w-16 h-16 mx-auto mb-6 text-emerald-400" />
       <h2 className="text-3xl font-black text-white mb-4">
-        Our Mission
+        {t('impact.mission.title')}
       </h2>
       <p className="text-lg text-slate-300 max-w-4xl mx-auto leading-relaxed mb-6">
-        To ensure access to justice never depends on wealth, location,
-        education, or digital literacy.
+        {t('impact.mission.sub')}
       </p>
       <div className="inline-flex items-center gap-2 text-emerald-400 font-semibold">
         <Scale className="w-5 h-5" />
-        Justice for All. Dignity for Everyone.
+        {t('impact.mission.footer')}
       </div>
     </div>
   );

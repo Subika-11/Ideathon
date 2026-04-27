@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { sendChatMessage, fetchChatHistory, isLoggedIn } from '@/utils/api';
 
 type Message = {
@@ -9,21 +10,26 @@ type Message = {
 // Available languages for the legal assistant
 const SUPPORTED_LANGUAGES = [
   { code: 'en-IN', label: 'English' },
-  { code: 'hi-IN', label: 'தமிழ் (Tamil)' }, // Wait, hi-IN is Hindi. Will fix below
+  { code: 'hi-IN', label: 'हिंदी (Hindi)' },
   { code: 'ta-IN', label: 'தமிழ் (Tamil)' },
 ];
 
-const KNOWLEDGE_BASE = {
-  property: { label: "Property & Housing", color: "text-blue-400" },
-  criminal: { label: "Criminal Law", color: "text-red-400" },
-  family: { label: "Family & Matrimonial", color: "text-purple-400" }
-};
-
 export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
+  const { t, i18n } = useTranslation();
+
+  const KNOWLEDGE_BASE = {
+    property: { label: t('chatbot.categories.property'), color: "text-blue-400" },
+    criminal: { label: "Criminal Law", color: "text-red-400" }, // Not in i18n yet, keeping as fallback
+    family: { label: "Family & Matrimonial", color: "text-purple-400" },
+    violence: { label: t('chatbot.categories.violence'), color: "text-red-400" },
+    theft: { label: t('chatbot.categories.theft'), color: "text-amber-400" },
+    fraud: { label: t('chatbot.categories.fraud'), color: "text-sky-400" }
+  };
+
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: 'bot',
-      text: "Welcome to **Legal Edge AI**. ⚖️\n\nI am here to help you understand your legal issue. You can type or speak securely.\n\n**Please select your language and describe your issue.**",
+      text: t('chatbot.welcome'),
     },
   ]);
   const [input, setInput] = useState('');
@@ -31,7 +37,7 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
   
   // New backend sync state
   const [activeTrack, setActiveTrack] = useState<string | null>(null);
-  const [language, setLanguage] = useState<string>('en-IN');
+  const [language, setLanguage] = useState<string>(i18n.language.startsWith('ta') ? 'ta-IN' : i18n.language.startsWith('hi') ? 'hi-IN' : 'en-IN');
   const [consultationId, setConsultationId] = useState<number | null>(null);
   const [structuredData, setStructuredData] = useState<any>(null);
 
@@ -45,6 +51,13 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isTyping, structuredData]);
+
+  // Stop TTS when chatbot is closed/unmounted
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   // Handle Speech Recognition setup
   useEffect(() => {
@@ -85,7 +98,7 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
     setMessages([
       {
         sender: 'bot',
-        text: "Welcome to **Legal Edge AI**. ⚖️\n\nI am here to help you understand your legal issue. You can type or speak in any language securely.\n\n**Please describe your issue or choose a category below.**",
+        text: t('chatbot.welcome_sub'),
       },
     ]);
     setConsultationId(null);
@@ -186,7 +199,7 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
     } catch {
       setMessages(prev => [
         ...prev,
-        { sender: 'bot', text: "I'm having trouble connecting. Please check your internet." },
+        { sender: 'bot', text: t('chatbot.error_internet') },
       ]);
     } finally {
       setIsTyping(false);
@@ -194,30 +207,28 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
   };
 
   return (
-    <div className={panel ? "flex flex-col h-full bg-[#020617] text-slate-100" : "flex flex-col h-[700px] w-full max-w-lg mx-auto bg-[#020617] rounded-3xl border border-white/10 shadow-2xl overflow-hidden font-sans"}>
+    <div className={panel ? "flex flex-col h-full overflow-hidden bg-[#020617] text-slate-100 font-montserrat" : "flex flex-col h-[80vh] max-h-[680px] w-full max-w-xl mx-auto bg-[#020617] rounded-3xl border border-white/10 shadow-2xl overflow-hidden font-montserrat"}>
       
       {/* Premium Dynamic Header */}
       <div className="px-5 py-4 border-b border-white/10 bg-gradient-to-r from-white/[0.05] to-transparent backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-blue-600 p-[2px] shadow-lg shadow-emerald-500/20">
-              <div className="w-full h-full rounded-[14px] bg-[#020617] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-blue-600 p-[2px] shadow-lg shadow-emerald-500/20 shrink-0">
+              <div className="w-full h-full rounded-full bg-[#020617] flex items-center justify-center">
                 <span className="text-transparent bg-clip-text bg-gradient-to-t from-emerald-400 to-blue-400 font-black text-xl italic tracking-tighter">
                   L
                 </span>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-black uppercase tracking-[0.15em] text-white leading-none">
-                  AI Counsel
-                </h3>
-              </div>
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-col">
+              <h3 className="text-[15px] font-black uppercase tracking-[0.12em] text-white leading-tight">
+                {t('chatbot.counsel')}
+              </h3>
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <div className={`h-1.5 w-1.5 rounded-full ${activeTrack ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-                <p className={`text-[10px] font-black uppercase tracking-[0.1em] ${activeTrack && activeTrack in KNOWLEDGE_BASE ? (KNOWLEDGE_BASE as any)[activeTrack].color : 'text-slate-500'}`}>
-                  {activeTrack && activeTrack in KNOWLEDGE_BASE ? (KNOWLEDGE_BASE as any)[activeTrack].label : 'General Assistance'}
+                <p className={`text-[10px] font-black uppercase tracking-[0.10em] ${activeTrack && activeTrack in KNOWLEDGE_BASE ? (KNOWLEDGE_BASE as any)[activeTrack].color : 'text-slate-500'}`}>
+                  {activeTrack && activeTrack in KNOWLEDGE_BASE ? (KNOWLEDGE_BASE as any)[activeTrack].label : t('chatbot.general_assistance')}
                 </p>
               </div>
             </div>
@@ -250,7 +261,7 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
         
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`relative max-w-[85%] px-5 py-4 rounded-3xl text-[14px] leading-relaxed shadow-xl group ${
+            <div className={`relative max-w-[90%] px-6 py-4 rounded-3xl text-[13px] md:text-[14px] leading-relaxed shadow-xl group ${
               m.sender === 'user' 
                 ? 'bg-emerald-600 text-white rounded-tr-none' 
                 : 'bg-white/[0.05] border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-sm'
@@ -292,22 +303,22 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
            <div className="mt-8 bg-gradient-to-br from-emerald-900/40 to-black/40 border border-emerald-500/30 rounded-3xl p-6 shadow-2xl">
               <h3 className="text-emerald-400 font-black text-lg mb-4 flex items-center gap-2">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                Legal Recommendation Report
+                {t('chatbot.report_title')}
               </h3>
               
               <div className="space-y-5">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Summary</h4>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{t('chatbot.summary')}</h4>
                   <p className="text-slate-200 text-sm">{structuredData.summary}</p>
                 </div>
                 
                 <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Required Actions</h4>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{t('chatbot.required_actions')}</h4>
                   <div className="text-slate-200 text-sm whitespace-pre-line bg-black/20 p-3 rounded-xl border border-white/5">{structuredData.actions}</div>
                 </div>
                 
                 <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Documents Needed</h4>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{t('chatbot.docs_needed')}</h4>
                   <div className="text-slate-200 text-sm whitespace-pre-line text-emerald-100">{structuredData.documents}</div>
                 </div>
               </div>
@@ -317,22 +328,27 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
       </div>
 
       {/* Action Chips */}
-      <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar bg-black/40 border-t border-white/5">
+      <div className="px-5 py-4 flex gap-2 overflow-x-auto no-scrollbar bg-black/40 border-t border-white/5">
         {(activeTrack && !structuredData) ? (
            <button
-            onClick={() => handleSend("Please summarize the issue and provide the final structured report.", true)}
-            className="whitespace-nowrap px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 text-xs font-black uppercase tracking-widest text-white hover:opacity-90 shadow-lg shadow-emerald-500/20"
+            onClick={() => handleSend(t('chatbot.final_report_prompt'), true)}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 text-xs font-black uppercase tracking-widest text-white hover:opacity-90 shadow-lg shadow-emerald-500/20"
           >
-            Generate Final Report
+            {t('chatbot.generate_report')}
           </button>
         ) : (
-          ['Property Dispute', 'Domestic Violence', 'Theft', 'Fraud'].map((action) => (
+          [
+            { key: 'property', label: t('chatbot.categories.property') },
+            { key: 'violence', label: t('chatbot.categories.violence') },
+            { key: 'theft', label: t('chatbot.categories.theft') },
+            { key: 'fraud', label: t('chatbot.categories.fraud') }
+          ].map((cat) => (
             <button
-              key={action}
-              onClick={() => handleSend(action)}
+              key={cat.key}
+              onClick={() => handleSend(cat.label)}
               className="whitespace-nowrap px-4 py-2 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
             >
-              {action}
+              {cat.label}
             </button>
           ))
         )}
@@ -356,8 +372,8 @@ export default function LegalChatbot({ panel = false }: { panel?: boolean }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={isListening ? "Listening..." : "Describe your legal concern..."}
-            className="flex-1 bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-3 text-sm font-medium text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+            placeholder={isListening ? t('chatbot.listening') : t('chatbot.placeholder')}
+            className="flex-1 h-12 bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-3 text-sm font-medium text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
           />
           
           <button 

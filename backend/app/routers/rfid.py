@@ -14,6 +14,7 @@ import logging
 import threading
 import time
 from typing import Optional
+import httpx
 import serial
 import serial.tools.list_ports
 
@@ -28,6 +29,7 @@ router = APIRouter(tags=["RFID"])
 
 # ── Internal state ─────────────────────────────────────────────────────────────
 _latest_uid: Optional[str] = None
+_presence_detected: bool = True  # Default to True so it doesn't start black if serial fails
 _lock = threading.Lock()
 _reader_thread: Optional[threading.Thread] = None
 _stop_event = threading.Event()
@@ -68,7 +70,7 @@ def _serial_reader():
     Continuously tries to open the serial port, reads UIDs, and retries on failure.
     Recovers automatically after the Arduino sketch is uploaded and port reopens.
     """
-    global _latest_uid
+    global _latest_uid, _presence_detected
 
     while not _stop_event.is_set():
         port = _find_esp32_port()
@@ -92,16 +94,33 @@ def _serial_reader():
                     if not raw:
                         continue
 
-                    logger.debug(f"Serial RX: {raw!r}")
+                    # Robust keyword detection
+                    is_on = any(kw in raw for kw in ["PRESENCE:ON", "SCREEN ON", "Person Detected"])
+                    is_off = any(kw in raw for kw in ["PRESENCE:OFF", "SCREEN OFF", "No Person"])
 
-                    if _is_valid_uid(raw):
+                    if is_on:
+                        with _lock:
+                            if not _presence_detected:
+                                logger.info(">>> Screen Wake Up (Person Detected)")
+                                _presence_detected = True
+                    elif is_off:
+                        with _lock:
+                            if _presence_detected:
+                                logger.info(">>> Screen Power Save (No Person)")
+                                _presence_detected = False
+                    elif "RFID:" in raw:
+                        uid = raw.split("RFID:")[1].strip()
+                        with _lock:
+                            _latest_uid = uid
+                        logger.info(f"RFID card scanned: {uid}")
+                    elif _is_valid_uid(raw):
                         uid = ":".join(p.upper() for p in raw.split(":")[:4])
                         with _lock:
                             _latest_uid = uid
                         logger.info(f"RFID card scanned: {uid}")
                     else:
-                        # Log non-UID strings at INFO level to help user verify connection
-                        if "RFID Scanner Ready" not in raw:
+                        # Log other messages for debugging
+                        if "RFID Scanner Ready" not in raw and "--- LegalEdge" not in raw:
                             logger.info(f"ESP32 Message: {raw}")
 
                 except serial.SerialException as e:
@@ -165,6 +184,16 @@ def check_rfid():
     return {"status": "idle"}
 
 
+@router.get("/check-presence")
+def check_presence():
+    """
+    Frontend polls this to see if the screen should be on or off.
+    """
+    global _presence_detected
+    with _lock:
+        return {"presence": _presence_detected}
+
+
 @router.post("/update-rfid")
 async def update_rfid(payload: dict = Body(...), db: Session = Depends(get_db)):
     """
@@ -200,3 +229,31 @@ async def update_rfid(payload: dict = Body(...), db: Session = Depends(get_db)):
             "user_found": False,
             "message": "Card not assigned to any user"
         }
+@router.post("/update-presence")
+async def update_presence(payload: dict = Body(...)):
+    """
+    ESP32 calls this via WiFi to report if someone is detected.
+    Payload: {"presence": true} or {"presence": false}
+    """
+    global _presence_detected
+    presence = payload.get("presence", True)
+    with _lock:
+        if presence != _presence_detected:
+            state = "Wake Up" if presence else "Power Save"
+            logger.info(f">>> Wireless Presence: {state}")
+            _presence_detected = presence
+    return {"status": "ok"}
+ 
+@router.post("/play-audio")
+async def play_audio(track: int):
+    """Trigger audio on the wireless ESP32."""
+    esp32_audio_url = f"http://172.20.10.3/play?track={track}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            await client.get(esp32_audio_url, timeout=1.0)
+            logger.info(f"Wireless Audio Triggered: Track {track}")
+            return {"status": "success", "mode": "wireless"}
+        except Exception as e:
+            logger.error(f"Wireless Audio Failed: {e}")
+            return {"status": "error", "message": str(e)}

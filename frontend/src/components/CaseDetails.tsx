@@ -13,7 +13,7 @@ export default function CaseDetails({ caseId, onBack }: { caseId: string; onBack
 
         <div className="bg-white rounded-2xl shadow p-6">
           <h1 className="text-2xl font-bold mb-2">Case Details</h1>
-          <p className="text-sm text-slate-500 mb-6">Case ID: <span className="font-mono">{caseId}</span></p>
+          <p className="text-sm text-slate-500 mb-6">Case ID: <span className="font-montserrat">{caseId}</span></p>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="p-4 border rounded">

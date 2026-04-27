@@ -1,43 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LegalEdge – Bridge to Justice</title>
+    <meta name="google" content="notranslate" />
+    <title>LegalEdge — Bridge to Justice</title>
   </head>
 
   <body>
     <div id="root"></div>
-
-    <!-- Hidden Google Translate Element -->
-    <div id="google_translate_element" style="display:none;"></div>
-
-    <script>
-      function googleTranslateElementInit() {
-        new google.translate.TranslateElement(
-          {
-            pageLanguage: 'en',
-            includedLanguages: 'en,hi,ta,te,kn,ml,bn,mr',
-            autoDisplay: false
-          },
-          'google_translate_element'
-        );
-      }
-    </script>
-
-    <script
-      src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-      defer
-    ></script>
-
-    <!-- Safe top-bar hide (no mutation observer) -->
-    <script>
-      setInterval(() => {
-        const frame = document.querySelector('iframe.goog-te-banner-frame');
-        if (frame) frame.style.display = 'none';
-        document.body.style.top = '0px';
-      }, 500);
-    </script>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>

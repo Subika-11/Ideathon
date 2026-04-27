@@ -141,7 +141,7 @@ export const CaseSummaryCard = ({ caseData }: CaseSummaryCardProps) => {
       >
         <Hash className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm text-muted-foreground">CNR:</span>
-        <span className="font-mono text-foreground tracking-wider">
+        <span className="font-montserrat text-foreground tracking-wider">
           {caseData.cnr}
         </span>
       </motion.div>

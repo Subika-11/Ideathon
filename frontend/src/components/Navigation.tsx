@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import LegalChatbot from './LegalChatbot';
+import { X } from 'lucide-react';
 
 type Page = 'home' | 'kiosk' | 'features' | 'tracking' | 'impact' | 'chatbot';
 
@@ -15,17 +16,6 @@ export default function Navigation({
 }) {
   const { t, i18n } = useTranslation();
   const [showChat, setShowChat] = useState(false);
-  const panelWidthPx = 360;
-
-  /* 🔹 Prevent layout shift when chat opens */
-  useEffect(() => {
-    const pad = showChat ? `${panelWidthPx}px` : '';
-    const prev = document.body.style.paddingRight;
-    document.body.style.paddingRight = pad;
-    return () => {
-      document.body.style.paddingRight = prev;
-    };
-  }, [showChat]);
 
   /* 🔹 LISTEN for global "open-chat" event */
   useEffect(() => {
@@ -93,16 +83,15 @@ export default function Navigation({
                 {items.map((item) => {
                   const active = currentPage === item.id;
                   return (
-                   <button
-  key={item.id}
-  onClick={() => onNavigate(item.id as Page)}
-  className={`text-xs font-black uppercase tracking-[0.22em] transition ${
-    active
-      ? 'text-emerald-500 border-b border-emerald-500 pb-1'
-      : 'text-slate-400 hover:text-white'
-  }`}
->
-
+                    <button
+                      key={item.id}
+                      onClick={() => onNavigate(item.id as Page)}
+                      className={`text-xs font-black uppercase tracking-[0.22em] transition ${
+                        active
+                          ? 'text-emerald-500 border-b border-emerald-500 pb-1'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
                       {item.label}
                     </button>
                   );
@@ -129,7 +118,7 @@ export default function Navigation({
                   onClick={() => setShowChat(true)}
                   className="px-3 py-2 bg-emerald-600 text-white text-sm font-bold rounded-md hover:bg-emerald-500 transition"
                 >
-                  Chat
+                  {t('nav.assistant')}
                 </button>
               )}
             </div>
@@ -138,24 +127,22 @@ export default function Navigation({
       </nav>
 
       {showChat && (
-        <div className="fixed inset-0 z-[60] pointer-events-none">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-16">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-auto"
-            onClick={() => setShowChat(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+            onClick={() => { window.speechSynthesis.cancel(); setShowChat(false); }}
           />
-          <div className="absolute top-0 right-0 h-screen w-[360px] pointer-events-auto bg-[#050a18] shadow-2xl">
-            <div className="h-full flex flex-col">
-              <div className="flex justify-end p-3">
-                <button
-                  onClick={() => setShowChat(false)}
-                  className="bg-slate-800 text-slate-200 rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-slate-700"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <LegalChatbot panel />
-              </div>
+          <div className="relative w-full max-w-xl z-10 h-full flex flex-col">
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => { window.speechSynthesis.cancel(); setShowChat(false); }}
+                className="p-2 text-white/50 hover:text-white transition-colors"
+              >
+                <X size={28} />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+              <LegalChatbot panel={true} />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ interface CNRSearchBarProps {
 const CNR_REGEX = /^[A-Z]{4}\d{12}$/;
 
 export const CNRSearchBar = ({ onSearch, isSearching, isCompact = false }: CNRSearchBarProps) => {
+  const { t } = useTranslation();
   const [cnr, setCnr] = useState('');
   const [error, setError] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -33,7 +35,7 @@ export const CNRSearchBar = ({ onSearch, isSearching, isCompact = false }: CNRSe
     e.preventDefault();
     
     if (!CNR_REGEX.test(cnr)) {
-      setError('Invalid CNR format. Please check and try again.');
+      setError(t('tracking.invalid_format'));
       return;
     }
 
@@ -67,9 +69,9 @@ export const CNRSearchBar = ({ onSearch, isSearching, isCompact = false }: CNRSe
             onChange={handleChange}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="Enter 16-Digit CNR Number (e.g., TNCO123456789012)"
+            placeholder={t('tracking.placeholder')}
             className={`
-              flex-1 bg-transparent border-none outline-none font-mono text-lg tracking-wider
+              flex-1 bg-transparent border-none outline-none font-montserrat text-lg tracking-wider
               placeholder:text-muted-foreground/50 placeholder:font-sans placeholder:text-base placeholder:tracking-normal
               ${isCompact ? 'text-base' : 'text-lg'}
             `}
@@ -87,7 +89,7 @@ export const CNRSearchBar = ({ onSearch, isSearching, isCompact = false }: CNRSe
                 {isValid ? (
                   <CheckCircle className="w-5 h-5" />
                 ) : (
-                  <span className="text-xs font-mono">{cnr.length}/16</span>
+                  <span className="text-xs font-montserrat">{cnr.length}/16</span>
                 )}
               </motion.div>
             )}
@@ -110,7 +112,7 @@ export const CNRSearchBar = ({ onSearch, isSearching, isCompact = false }: CNRSe
                 className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
               />
             ) : (
-              'Verify & Search'
+              t('tracking.verify_search')
             )}
           </Button>
         </div>
@@ -132,7 +134,7 @@ export const CNRSearchBar = ({ onSearch, isSearching, isCompact = false }: CNRSe
 
       {!isCompact && (
         <p className="text-center text-xs text-muted-foreground/60 mt-3">
-          CNR is a unique 16-character case identifier
+          {t('tracking.cnr_hint')}
         </p>
       )}
     </motion.form>

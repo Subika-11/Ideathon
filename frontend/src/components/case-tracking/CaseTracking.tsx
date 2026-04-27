@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { CNRSearchBar } from './CNRSearchBar';
@@ -18,6 +19,7 @@ export default function CaseTrackingPage({
 }: {
   onNavigate: (p: Page) => void;
 }) {
+  const { t } = useTranslation();
   const [viewState, setViewState] = useState<'search' | 'searching' | 'results' | 'not_found'>('search');
   const [searchError, setSearchError] = useState('');
 
@@ -33,7 +35,7 @@ export default function CaseTrackingPage({
     const result = await searchCaseByCnr(cnr);
 
     if (!result.found || !result.caseData) {
-      setSearchError(result.error ?? 'No case found for this CNR number.');
+      setSearchError(result.error ?? t('tracking.case_not_found'));
       setViewState('not_found');
       return;
     }
@@ -62,10 +64,10 @@ export default function CaseTrackingPage({
             >
               <div className="text-center mb-10">
                 <h1 className="text-6xl font-extrabold mb-4 tracking-tight italic">
-                  TRACK YOUR <span className="text-gradient">CASE</span>
+                  {t('tracking.track_case')}
                 </h1>
                 <p className="text-muted-foreground text-lg">
-                  Access real-time legal records securely
+                  {t('tracking.real_time_records')}
                 </p>
               </div>
               <div className="w-full max-w-2xl">
@@ -91,13 +93,13 @@ export default function CaseTrackingPage({
                   <AlertCircle className="w-8 h-8 text-destructive" />
                 </div>
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">
-                  Case <span className="text-destructive">Not Found</span>
+                  {t('tracking.case_not_found')}
                 </h2>
                 <p className="text-muted-foreground text-sm">
                   {searchError}
                 </p>
                 <p className="text-muted-foreground/60 text-xs">
-                  Check that the CNR number is entered correctly — it should be 4 letters followed by 12 digits.
+                  {t('tracking.check_cnr')}
                 </p>
               </div>
 
@@ -136,7 +138,7 @@ export default function CaseTrackingPage({
                   onClick={() => setViewState('search')}
                   className="text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition"
                 >
-                  ← Search another case
+                  ← {t('tracking.search_another')}
                 </button>
               </div>
             </motion.div>

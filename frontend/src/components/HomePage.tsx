@@ -151,12 +151,12 @@ export default function HomePage({
                          transition-all duration-500 hover:-translate-y-2"
             >
               <div className="px-12 py-16 text-left">
-                <h3 className="text-2xl font-black text-white">Case Tracking</h3>
+                <h3 className="text-2xl font-black text-white">{t('case_tracking')}</h3>
                 <p className="text-slate-400 mt-3">
-                  Track case status, hearings, and judicial orders transparently.
+                  {t('track_desc')}
                 </p>
                 <div className="pt-8 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                  Open Module →
+                  {t('open_module')} →
                 </div>
               </div>
             </button>
@@ -169,12 +169,12 @@ export default function HomePage({
                          transition-all duration-500 hover:-translate-y-2"
             >
               <div className="px-12 py-16 text-left">
-                <h3 className="text-2xl font-black text-white">Locate Kiosk</h3>
+                <h3 className="text-2xl font-black text-white">{t('map.locate_kiosk_title') || 'Locate Kiosk'}</h3>
                 <p className="text-slate-400 mt-3">
-                  Find nearby Legal Edge kiosks using GPS and maps.
+                  {t('map.locate_sub') || 'Find nearby Legal Edge kiosks using GPS and maps.'}
                 </p>
                 <div className="pt-8 text-[10px] font-black uppercase tracking-widest text-sky-400">
-                  Find Nearby →
+                  {t('map.find_nearby') || 'Find Nearby'} →
                 </div>
               </div>
             </button>
@@ -187,12 +187,12 @@ export default function HomePage({
                          transition-all duration-500 hover:-translate-y-2"
             >
               <div className="px-12 py-16 text-left">
-                <h3 className="text-2xl font-black text-white">Legal Assistant</h3>
+                <h3 className="text-2xl font-black text-white">{t('chatbot_nav')}</h3>
                 <p className="text-slate-400 mt-3">
-                  AI-powered legal guidance with voice and language support.
+                  {t('chat_desc')}
                 </p>
                 <div className="pt-8 text-[10px] font-black uppercase tracking-widest text-purple-400">
-                  Start Chat →
+                  {t('kiosk.legal_assistance')} →
                 </div>
               </div>
             </button>

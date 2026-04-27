@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, MousePointer2 } from 'lucide-react';
 import LandingPage from './components/LandingPage';
@@ -13,7 +13,7 @@ import LocateKiosk from './components/LocateKiosk';
 import { changeLanguage } from './translate';
 import i18n from './i18n';
 import RemindersPage from './components/RemaindersPage';
-import { isLoggedIn } from './utils/api';
+import { isLoggedIn, checkPresence, playAudio, playAudioByAction } from './utils/api';
 
 /* ---------------- TYPES ---------------- */
 
@@ -33,11 +33,9 @@ type Page =
 /* ---------------- TOUR ---------------- */
 
 const TOUR_STEPS: { page: Page; title: string; desc: string }[] = [
-  { page: 'home', title: 'tour_step1_title', desc: 'tour_step1_desc' },
-  { page: 'features', title: 'tour_step2_title', desc: 'tour_step2_desc' },
-  { page: 'tracking', title: 'tour_step3_title', desc: 'tour_step3_desc' },
-  { page: 'impact', title: 'tour_step4_title', desc: 'tour_step4_desc' },
-  { page: 'kiosk', title: 'tour_step5_title', desc: 'tour_step5_desc' },
+  { page: 'home', title: 'tut_title_1', desc: 'tut_desc_1' },
+  { page: 'features', title: 'tut_title_2', desc: 'tut_desc_2' },
+  { page: 'tracking', title: 'tut_title_3', desc: 'tut_desc_3' },
 ];
 
 /* ---------------- APP ---------------- */
@@ -49,6 +47,17 @@ export default function App() {
   const [currentCaseId, setCurrentCaseId] = useState<string | null>(null);
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const [presence, setPresence] = useState(false);
+  const [powerSaveTimer, setPowerSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isBlackedOut, setIsBlackedOut] = useState(false);
+  const lastWelcomed = useRef<number>(0);
+ 
+  /* ---------------- INITIAL GREETING ---------------- */
+  useEffect(() => {
+    // Initial load greeting
+    playAudioByAction('WELCOME');
+    lastWelcomed.current = Date.now();
+  }, []);
 
   /* ---------------- LANGUAGE RESTORE ---------------- */
   useEffect(() => {
@@ -56,6 +65,44 @@ export default function App() {
     i18n.changeLanguage(savedLang);
     changeLanguage(savedLang);
   }, []);
+  
+  /* ---------------- PRESENCE POLLING & POWER SAVE ---------------- */
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const result = await checkPresence();
+        
+        if (result.presence !== presence) {
+          setPresence(result.presence);
+          
+          if (result.presence) {
+            setIsBlackedOut(false);
+            
+            // Only play welcome if it's been at least 1 minute since the last one
+            // AND only if we are on the landing page
+            const now = Date.now();
+            if (now - lastWelcomed.current > 60000 && currentPage === 'landing') {
+              playAudioByAction('WELCOME');
+              lastWelcomed.current = now;
+            }
+            
+            if (powerSaveTimer) {
+              clearTimeout(powerSaveTimer);
+              setPowerSaveTimer(null);
+            }
+          } else {
+            const timer = setTimeout(() => {
+              setIsBlackedOut(true);
+            }, 5000); 
+            setPowerSaveTimer(timer);
+          }
+        }
+      } catch (e) {
+        // Silently ignore polling errors
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [presence, powerSaveTimer]);
 
   /* ---------------- URL → STATE (ON LOAD) ---------------- */
   useEffect(() => {
@@ -144,7 +191,7 @@ export default function App() {
         return (
           <LoginPage
             onNavigate={navigate}
-            onSuccess={() => navigate('home')}
+            onSuccess={() => navigate('kiosk')}
             onBack={() => navigate('landing')}
           />
         );
@@ -177,8 +224,10 @@ export default function App() {
 
       case 'chatbot':
         return (
-          <div className="min-h-screen bg-background text-foreground pt-28 px-6">
-            <LegalChatbot />
+          <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 md:p-6 pt-16">
+            <div className="w-full max-w-xl">
+              <LegalChatbot />
+            </div>
           </div>
         );
       
@@ -192,7 +241,7 @@ export default function App() {
 
   /* ---------------- RENDER ---------------- */
   return (
-    <div className="min-h-screen bg-background text-foreground relative font-inter">
+    <div className="min-h-screen bg-background text-foreground relative font-montserrat">
       {/* Footer */}
       <div className="fixed bottom-6 left-0 w-full text-center pointer-events-none z-0">
         <p className="text-muted-foreground text-[10px] uppercase font-semibold tracking-[0.35em] italic opacity-40">
@@ -237,14 +286,21 @@ export default function App() {
                 className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-[10px] uppercase flex items-center gap-2 font-semibold"
               >
                 {tourStep === TOUR_STEPS.length - 1
-                  ? t('finish')
-                  : t('next_step')}
+                  ? t('tut_btn_finish')
+                  : t('tut_btn_next')}
                 <ChevronRight size={14} />
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* POWER SAVE OVERLAY - Only active on Landing Page */}
+      <div 
+        className={`fixed inset-0 bg-black z-[9999] cursor-none pointer-events-none transition-opacity duration-1000 ${
+          (isBlackedOut && currentPage === 'landing') ? 'opacity-100 pointer-events-auto' : 'opacity-0'
+        }`} 
+      />
     </div>
   );
 }

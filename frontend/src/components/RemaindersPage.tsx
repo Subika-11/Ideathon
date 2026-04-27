@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, Calendar, Clock, AlertTriangle, Info, Scale, FileText, ChevronLeft, Loader2 } from 'lucide-react';
 import Navigation from './Navigation';
 import { fetchReminders, isLoggedIn } from '@/utils/api';
@@ -61,55 +62,57 @@ const FALLBACK_REMINDERS = [
   },
 ];
 
-// Map type strings to icon components and colors
-function getTypeConfig(type: string, urgent?: boolean) {
-  if (urgent || type === 'urgent') {
-    return {
-      Icon: AlertTriangle,
-      color: 'text-red-500',
-      bg: 'bg-red-50 border-red-200',
-      badge: 'bg-red-100 text-red-600',
-      label: 'URGENT',
-    };
-  }
-  switch (type) {
-    case 'document':
-    case 'deadline':
-      return {
-        Icon: FileText,
-        color: 'text-amber-500',
-        bg: 'bg-amber-50 border-amber-200',
-        badge: 'bg-amber-100 text-amber-700',
-        label: 'DEADLINE',
-      };
-    case 'hearing':
-      return {
-        Icon: Calendar,
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-50 border-emerald-200',
-        badge: 'bg-emerald-100 text-emerald-700',
-        label: 'HEARING',
-      };
-    case 'meeting':
-      return {
-        Icon: Scale,
-        color: 'text-blue-500',
-        bg: 'bg-blue-50 border-blue-200',
-        badge: 'bg-blue-100 text-blue-700',
-        label: 'MEETING',
-      };
-    default:
-      return {
-        Icon: Info,
-        color: 'text-slate-500',
-        bg: 'bg-slate-50 border-slate-200',
-        badge: 'bg-slate-100 text-slate-600',
-        label: 'REMINDER',
-      };
-  }
-}
 
 export default function RemindersPage({ onNavigate }: RemindersPageProps) {
+  const { t } = useTranslation();
+
+  // Map type strings to icon components and colors
+  function getTypeConfig(type: string, urgent?: boolean) {
+    if (urgent || type === 'urgent') {
+      return {
+        Icon: AlertTriangle,
+        color: 'text-red-500',
+        bg: 'bg-red-50 border-red-200',
+        badge: 'bg-red-100 text-red-600',
+        label: t('reminders.urgent'),
+      };
+    }
+    switch (type) {
+      case 'document':
+      case 'deadline':
+        return {
+          Icon: FileText,
+          color: 'text-amber-500',
+          bg: 'bg-amber-50 border-amber-200',
+          badge: 'bg-amber-100 text-amber-700',
+          label: t('reminders.deadline'),
+        };
+      case 'hearing':
+        return {
+          Icon: Calendar,
+          color: 'text-emerald-500',
+          bg: 'bg-emerald-50 border-emerald-200',
+          badge: 'bg-emerald-100 text-emerald-700',
+          label: t('reminders.hearing'),
+        };
+      case 'meeting':
+        return {
+          Icon: Scale,
+          color: 'text-blue-500',
+          bg: 'bg-blue-50 border-blue-200',
+          badge: 'bg-blue-100 text-blue-700',
+          label: t('reminders.meeting'),
+        };
+      default:
+        return {
+          Icon: Info,
+          color: 'text-slate-500',
+          bg: 'bg-slate-50 border-slate-200',
+          badge: 'bg-slate-100 text-slate-600',
+          label: t('reminders.reminder'),
+        };
+    }
+  }
   const [reminders, setReminders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +163,7 @@ export default function RemindersPage({ onNavigate }: RemindersPageProps) {
             onClick={() => onNavigate('kiosk')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition mb-6"
           >
-            <ChevronLeft className="w-4 h-4" /> Back to Kiosk
+            <ChevronLeft className="w-4 h-4" /> {t('reminders.back_to_kiosk')}
           </button>
 
           <div className="flex items-center gap-4 mb-2">
@@ -169,10 +172,10 @@ export default function RemindersPage({ onNavigate }: RemindersPageProps) {
             </div>
             <div>
               <h1 className="text-4xl font-extrabold tracking-tight italic">
-                COURT <span className="text-gradient">REMINDERS</span>
+                {t('reminders.title')}
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
-                Upcoming hearings, deadlines & general notices
+                {t('reminders.sub')}
               </p>
             </div>
           </div>
@@ -182,7 +185,7 @@ export default function RemindersPage({ onNavigate }: RemindersPageProps) {
         {loading && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <span className="ml-3 text-muted-foreground">Loading reminders...</span>
+            <span className="ml-3 text-muted-foreground">{t('reminders.loading')}</span>
           </div>
         )}
 
@@ -230,13 +233,13 @@ export default function RemindersPage({ onNavigate }: RemindersPageProps) {
         {!loading && reminders.length === 0 && (
           <div className="text-center py-20">
             <Bell className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground">No reminders yet.</p>
+            <p className="text-muted-foreground">{t('reminders.no_reminders')}</p>
           </div>
         )}
 
         {/* Footer note */}
         <p className="mt-10 text-center text-xs text-muted-foreground uppercase tracking-widest">
-          Reminders are synced with the LegalEdge database
+          {t('reminders.synced')}
         </p>
       </main>
     </div>

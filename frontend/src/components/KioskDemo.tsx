@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Mic,
   FileText,
@@ -30,6 +31,7 @@ declare global {
 
 
 export default function KioskDemo({ onNavigate }: KioskDemoProps) {
+  const { t } = useTranslation();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [voiceFeedback, setVoiceFeedback] = useState<string | null>(null);
@@ -54,48 +56,35 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
   // This runs inside recognition.onend via resolveAndShowRef, so it must only
   // use refs — never close over state or props directly.
   const handleVoiceCommand = (said: string) => {
-    const t = said.toLowerCase().replace(/[.,!?]/g, '').trim();
+    const text = said.toLowerCase().replace(/[.,!?]/g, '').trim();
     let feedback = '';
 
-    // "case status", "my case", "check case", "track case", "case tracking",
-    // "case update", "cnr", "court case", "case details", "case info"
-    if (/\bcase\b|\b k status\b|\bcnr\b|\btracking\b|\btrack\b/.test(t)) {
+    if (/\bcase\b|\b k status\b|\bcnr\b|\btracking\b|\btrack\b/.test(text)) {
       onNavigateRef.current('tracking');
-      feedback = '📂 Opening Case Status…';
+      feedback = t('kiosk.feedback.opening_tracking');
 
-    // "legal assistance", "legal help", "legal support", "legal aid",
-    // "need a lawyer", "lawyer", "chatbot", "legal advice", "get help",
-    // "i need help", "legal guidance", "assist me"
-    } else if (/legal|lawyer|chatbot|counsel|advocate|advic|guidanc|assist/.test(t)) {
+    } else if (/legal|lawyer|chatbot|counsel|advocate|advic|guidanc|assist/.test(text)) {
       onNavigateRef.current('chatbot');
-      feedback = '⚖️ Opening Legal Assistance…';
+      feedback = t('kiosk.feedback.opening_chatbot');
 
-    // "reminders", "reminder", "my reminders", "show reminders",
-    // "view reminders", "hearing reminder", "alerts"
-    } else if (/remind|alert/.test(t)) {
+    } else if (/remind|alert/.test(text)) {
       onNavigateRef.current('reminders');
-      feedback = '🔔 Opening Reminders…';
+      feedback = t('kiosk.feedback.opening_reminders');
 
-    // "contact helpdesk", "helpdesk", "help desk", "contact help",
-    // "contact support", "contact", "call helpdesk", "reach helpdesk",
-    // "support", "i need support", "phone number", "contact number"
-    } else if (/contact|helpdesk|help.?desk|support|phone|call/.test(t)) {
+    } else if (/contact|helpdesk|help.?desk|support|phone|call/.test(text)) {
       setActivePanelRef.current('helpdesk');
-      feedback = '📞 Opening Contact Helpdesk…';
+      feedback = t('kiosk.feedback.opening_helpdesk');
 
-    // "judicial orders", "orders", "court orders", "show orders", "view orders"
-    } else if (/judicial|order/.test(t)) {
+    } else if (/judicial|order/.test(text)) {
       setActivePanelRef.current('orders');
-      feedback = '🔨 Showing Judicial Orders…';
+      feedback = t('kiosk.feedback.showing_orders');
 
-    // "hearing list", "hearings", "cause list", "upcoming hearings",
-    // "next hearing", "schedule", "hearing date"
-    } else if (/hearing|cause.?list|schedul/.test(t)) {
+    } else if (/hearing|cause.?list|schedul/.test(text)) {
       setActivePanelRef.current('cause');
-      feedback = '📋 Showing Hearing List…';
+      feedback = t('kiosk.feedback.showing_hearings');
 
     } else {
-      feedback = `❓ Not recognized. Try: "case status", "legal assistance", "reminders", or "contact helpdesk".`;
+      feedback = t('kiosk.feedback.not_recognized');
     }
 
     setVoiceFeedbackRef.current(feedback);
@@ -159,10 +148,10 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                 <ShieldCheck className="w-8 h-8 text-emerald-200" />
                 <div>
                   <h1 className="text-2xl font-semibold uppercase">
-                    Legal Edge Kiosk
+                    {t('kiosk.title')}
                   </h1>
                   <p className="text-[10px] opacity-85 uppercase tracking-widest mt-1">
-                    AI-Powered Public Legal Access Platform
+                    {t('kiosk.subtitle')}
                   </p>
                 </div>
               </div>
@@ -172,15 +161,15 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
               {/* SIDEBAR */}
               <aside className="w-60 bg-slate-50 border-r border-slate-100 p-6 flex flex-col gap-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">
-                  Quick Services
+                  {t('kiosk.quick_services')}
                 </p>
 
                 {[
-                  { icon: Search,   label: 'CNR Search',         id: 'tracking' },
-                  { icon: FileText, label: 'Case Status',         id: 'tracking' },
-                  { icon: Gavel,    label: 'Judicial Orders',     id: 'orders'   },
-                  { icon: List,     label: 'Hearing List',        id: 'cause'    },
-                  { icon: Monitor,  label: 'Virtual Proceedings', id: 'virtual'  },
+                  { icon: Search,   label: t('kiosk.cnr_search'),         id: 'tracking' },
+                  { icon: FileText, label: t('kiosk.case_status'),         id: 'tracking' },
+                  { icon: Gavel,    label: t('kiosk.judicial_orders'),     id: 'orders'   },
+                  { icon: List,     label: t('kiosk.hearing_list'),        id: 'cause'    },
+                  { icon: Monitor,  label: t('kiosk.virtual_proceedings'), id: 'virtual'  },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -216,7 +205,7 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                         <>
                           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
                             <Gavel className="w-5 h-5 text-emerald-600" />
-                            Judicial Orders
+                            {t('kiosk.judicial_orders')}
                           </h2>
                           <ul className="text-sm space-y-3 text-slate-600">
                             <li className="p-3 rounded-xl bg-slate-50 border">• 12 Feb 2026 – Interim stay granted</li>
@@ -229,7 +218,7 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                         <>
                           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
                             <List className="w-5 h-5 text-emerald-600" />
-                            Hearing List
+                            {t('kiosk.hearing_list')}
                           </h2>
                           <ul className="text-sm space-y-3 text-slate-600">
                             <li className="p-3 rounded-xl bg-slate-50 border">• 15 Feb 2026 – Arguments Hearing</li>
@@ -242,7 +231,7 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                         <>
                           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
                             <Phone className="w-5 h-5 text-emerald-600" />
-                            Contact Helpdesk
+                            {t('kiosk.contact_helpdesk')}
                           </h2>
                           <div className="text-sm space-y-3 text-slate-600">
                             <p className="p-3 rounded-xl bg-slate-50 border">📞 044-2567-8899</p>
@@ -255,7 +244,7 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                         onClick={() => setActivePanel('home')}
                         className="mt-6 w-full py-2 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-widest hover:bg-slate-200 transition"
                       >
-                        Close
+                        {t('kiosk.close')}
                       </button>
                     </div>
                   </div>
@@ -265,26 +254,26 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                 <div className="grid grid-cols-2 gap-4 flex-1">
                   <MenuCard
                     icon={Search}
-                    title="My Case Status"
-                    subtitle="Track hearings & progress"
+                    title={t('kiosk.case_status')}
+                    subtitle={t('kiosk.case_status_sub')}
                     onClick={() => onNavigate('tracking')}
                   />
                   <MenuCard
                     icon={HelpCircle}
-                    title="Legal Assistance"
-                    subtitle="AI-guided legal support"
+                    title={t('kiosk.legal_assistance')}
+                    subtitle={t('kiosk.legal_assistance_sub')}
                     onClick={() => onNavigate('chatbot')}
                   />
                   <MenuCard
                     icon={Bell}
-                    title="Reminders"
-                    subtitle="Hearing alerts"
+                    title={t('kiosk.reminders')}
+                    subtitle={t('kiosk.reminders_sub')}
                     onClick={() => onNavigate('reminders')}
                   />
                   <MenuCard
                     icon={Phone}
-                    title="Contact Helpdesk"
-                    subtitle="Court & legal contacts"
+                    title={t('kiosk.contact_helpdesk')}
+                    subtitle={t('kiosk.contact_helpdesk_sub')}
                     onClick={() => setActivePanel('helpdesk')}
                   />
                 </div>
@@ -302,13 +291,13 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                     <div className="p-1.5 rounded-full bg-emerald-500">
                       <Mic className="w-4 h-4" />
                     </div>
-                    {isListening ? 'Listening…' : 'Speak Your Query'}
+                    {isListening ? t('kiosk.listening') : t('kiosk.speak_query')}
                   </button>
 
                   {/* Live transcript */}
                   {transcript && (
                     <div className="mt-3 p-3 rounded-xl bg-slate-50 text-slate-700 text-sm">
-                      <strong>You said:</strong> {transcript}
+                      <strong>{t('kiosk.you_said')}:</strong> {transcript}
                     </div>
                   )}
 
@@ -322,7 +311,7 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                   {/* Hint text */}
                   {!isListening && !transcript && !voiceFeedback && (
                     <p className="mt-2 text-center text-[10px] text-slate-400 uppercase tracking-widest">
-                      Try: "case status" · "legal assistance" · "reminders" · "contact helpdesk"
+                      {t('kiosk.try_saying')}
                     </p>
                   )}
                 </div>
@@ -336,7 +325,7 @@ export default function KioskDemo({ onNavigate }: KioskDemoProps) {
                 onClick={() => onNavigate('home')}
                 className="hover:text-emerald-600 font-bold"
               >
-                Exit Kiosk
+                {t('kiosk.exit_kiosk')}
               </button>
             </footer>
           </div>

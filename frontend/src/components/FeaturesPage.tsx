@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Mic, Languages, WifiOff, ShieldCheck,
   Bell, Activity, FileCheck, ArrowRight, CheckCircle2,
@@ -103,6 +104,7 @@ const TechnicalPillar = ({ icon: Icon, title, delay, items, colorClass }: any) =
 };
 
 export default function PlatformFeatures({ onNavigate }: { onNavigate: (p: Page) => void }) {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 overflow-x-hidden">
       <Navigation currentPage="features" onNavigate={onNavigate} />
@@ -120,14 +122,14 @@ export default function PlatformFeatures({ onNavigate }: { onNavigate: (p: Page)
           
 
           <h1 className="text-6xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-none">
-            Architectural <br />
+            {t('features_page.title').split(' ')[0]} <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-              Capabilities.
+              {t('features_page.title').split(' ')[1]}
             </span>
           </h1>
 
           <p className="text-slate-400 text-xl font-light leading-relaxed">
-            Eliminating digital exclusion through neural AI processing and blockchain-grade integrity.
+            {t('features_page.sub')}
           </p>
         </div>
 
@@ -137,48 +139,32 @@ export default function PlatformFeatures({ onNavigate }: { onNavigate: (p: Page)
             delay={300}
             colorClass="emerald"
             icon={Mic}
-            title="Voice-First Neural AI"
-            items={[
-              'Simultaneous 22+ Language NLP',
-              'Regional dialect mapping',
-              'Legal jargon deconstruction',
-            ]}
+            title={t('features_page.pillar_voice')}
+            items={t('features_page.pillar_voice_items', { returnObjects: true })}
           />
 
           <TechnicalPillar
             delay={1200}
             colorClass="blue"
             icon={Languages}
-            title="Universal Support"
-            items={[
-              'Bilingual document synthesis',
-              'Real-time script transliteration',
-              'Native audio feedback',
-            ]}
+            title={t('features_page.pillar_universal')}
+            items={t('features_page.pillar_universal_items', { returnObjects: true })}
           />
 
           <TechnicalPillar
             delay={2100}
             colorClass="amber"
             icon={WifiOff}
-            title="Edge Resilience"
-            items={[
-              '100% Offline service availability',
-              'Localized record caching',
-              'Automatic synchronization',
-            ]}
+            title={t('features_page.pillar_edge')}
+            items={t('features_page.pillar_edge_items', { returnObjects: true })}
           />
 
           <TechnicalPillar
             delay={3000}
             colorClass="purple"
             icon={ShieldCheck}
-            title="Immutable Ledger"
-            items={[
-              'Blockchain-verified records',
-              'Tamper-proof audit trails',
-              'Decentralized accountability',
-            ]}
+            title={t('features_page.pillar_immutable')}
+            items={t('features_page.pillar_immutable_items', { returnObjects: true })}
           />
         </div>
 {/* SMART LOGISTICS - MNC SERVICE GRID */}
@@ -189,7 +175,7 @@ export default function PlatformFeatures({ onNavigate }: { onNavigate: (p: Page)
       <div className="flex items-center gap-4 mb-4">
         <Database className="text-emerald-500 w-8 h-8" />
         <h2 className="text-3xl font-black text-white uppercase tracking-widest leading-none">
-          Smart Logistics
+          {t('features_page.smart_logistics')}
         </h2>
       </div>
 
@@ -210,15 +196,15 @@ export default function PlatformFeatures({ onNavigate }: { onNavigate: (p: Page)
       />
 
       <p className="text-slate-500 text-sm leading-relaxed">
-        Automated judicial tracking synchronized with the National Judicial Data Grid (NJDG) for real-time compliance.
+        {t('features_page.smart_logistics_sub')}
       </p>
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flex-1">
       {[
-        { icon: Bell, t: "Alerts", d: "Multilingual SMS hearing alerts." },
-        { icon: Activity, t: "NJDG Sync", d: "Live judicial status tracking." },
-        { icon: FileCheck, t: "Verification", d: "AI compliance document checking." }
+        { icon: Bell, t: t('features_page.alerts'), d: t('features_page.alerts_sub') },
+        { icon: Activity, t: t('features_page.njdg'), d: t('features_page.njdg_sub') },
+        { icon: FileCheck, t: t('features_page.verification'), d: t('features_page.verification_sub') }
       ].map((f, i) => (
         <div
           key={i}
@@ -245,7 +231,7 @@ export default function PlatformFeatures({ onNavigate }: { onNavigate: (p: Page)
                        text-[10px] hover:scale-105 transition-all inline-flex
                        items-center gap-6 shadow-2xl"
           >
-            Launch Simulation
+            {t('features_page.launch_simulation')}
             <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-2" />
           </button>
         </div>
