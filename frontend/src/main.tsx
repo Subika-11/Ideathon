@@ -23,7 +23,7 @@
       if (this.state.error) {
         return (
           
-          <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
+          <div style={{ padding: 24, fontFamily: 'Montserrat, sans-serif' }}>
             <h1 style={{ color: '#b91c1c' }}>Something went wrong</h1>
             <pre style={{ whiteSpace: 'pre-wrap', background: '#111827', color: '#f8fafc', padding: 12, borderRadius: 8 }}>
               {String(this.state.error && this.state.error.message)}

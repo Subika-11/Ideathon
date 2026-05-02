@@ -66,20 +66,20 @@ export default function App() {
     changeLanguage(savedLang);
   }, []);
   
-  /* ---------------- PRESENCE POLLING & POWER SAVE ---------------- */
+  /* ---------------- PRESENCE & RFID POLLING ---------------- */
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const result = await checkPresence();
+        // 1. Check Presence (Ultrasonic)
+        const presResult = await checkPresence();
         
-        if (result.presence !== presence) {
-          setPresence(result.presence);
+        if (presResult.presence !== presence) {
+          setPresence(presResult.presence);
           
-          if (result.presence) {
+          if (presResult.presence) {
             setIsBlackedOut(false);
             
             // Only play welcome if it's been at least 1 minute since the last one
-            // AND only if we are on the landing page
             const now = Date.now();
             if (now - lastWelcomed.current > 60000 && currentPage === 'landing') {
               playAudioByAction('WELCOME');
@@ -91,18 +91,35 @@ export default function App() {
               setPowerSaveTimer(null);
             }
           } else {
+            // Person left: Wait 5 seconds before blacking out
             const timer = setTimeout(() => {
               setIsBlackedOut(true);
             }, 5000); 
             setPowerSaveTimer(timer);
           }
         }
+
+        // 2. Check RFID (Automatic Login from Landing Page)
+        if (currentPage === 'landing') {
+          const res = await fetch('http://localhost:8000/check-rfid');
+          const rfidData = await res.json();
+
+          if (rfidData.status === 'detected') {
+            const result = await lookupUserByNfcUid(rfidData.uid);
+            if (result.success && result.user) {
+              playAudioByAction('AUTH_SUCCESS');
+              navigate('home');
+            } else {
+              playAudioByAction('AUTH_FAILURE');
+            }
+          }
+        }
       } catch (e) {
         // Silently ignore polling errors
       }
-    }, 1000);
+    }, 500); // Poll every 500ms for high responsiveness
     return () => clearInterval(interval);
-  }, [presence, powerSaveTimer]);
+  }, [presence, powerSaveTimer, currentPage]);
 
   /* ---------------- URL → STATE (ON LOAD) ---------------- */
   useEffect(() => {
@@ -297,7 +314,7 @@ export default function App() {
 
       {/* POWER SAVE OVERLAY - Only active on Landing Page */}
       <div 
-        className={`fixed inset-0 bg-black z-[9999] cursor-none pointer-events-none transition-opacity duration-1000 ${
+        className={`fixed inset-0 bg-black z-[9999] cursor-none pointer-events-none transition-opacity duration-[2000ms] ease-in-out ${
           (isBlackedOut && currentPage === 'landing') ? 'opacity-100 pointer-events-auto' : 'opacity-0'
         }`} 
       />

@@ -21,11 +21,16 @@ def send_sms(phone: str, otp: str) -> bool:
     Returns True if sent successfully, False on failure.
     Falls back to console printing if Twilio is not configured.
     """
+    # ── Sanitize Phone Number ──────────────────────────────────────────────
+    # Remove spaces, dashes, and +91 if already provided by user
+    clean_phone = phone.replace("+91", "").replace(" ", "").replace("-", "").strip()
+    target_number = f"+91{clean_phone}"
+
     # ── Console Mode (default for development) ────────────────────────────────
     if not settings.TWILIO_ACCOUNT_SID:
-        logger.info(f"📲 [CONSOLE SMS] OTP for +91{phone}: {otp}")
+        logger.info(f"📲 [CONSOLE SMS] OTP for {target_number}: {otp}")
         print(f"\n{'='*50}")
-        print(f"  📲 OTP for +91{phone}: {otp}")
+        print(f"  📲 OTP for {target_number}: {otp}")
         print(f"{'='*50}\n")
         return True
 
@@ -38,7 +43,7 @@ def send_sms(phone: str, otp: str) -> bool:
         # Use Messaging SID if available, otherwise fallback to Phone Number
         message_args = {
             "body": f"[LegalEdge] Your OTP is: {otp}. Valid for 5 minutes.",
-            "to": f"+91{phone}"
+            "to": target_number
         }
         
         if settings.TWILIO_MESSAGING_SID:
@@ -50,11 +55,11 @@ def send_sms(phone: str, otp: str) -> bool:
 
         message = client.messages.create(**message_args)
         
-        logger.info(f"SMS sent to +91{phone} | SID: {message.sid}")
+        logger.info(f"SMS sent to {target_number} | SID: {message.sid}")
         return True
 
     except Exception as e:
-        logger.error(f"Failed to send SMS to +91{phone}: {e}")
+        logger.error(f"Failed to send SMS to {target_number}: {e}")
         # Fallback to console so the developer can still see the OTP
-        print(f"\n⚠️  SMS FAILED — OTP for +91{phone}: {otp}\n")
+        print(f"\n⚠️  SMS FAILED — OTP for {target_number}: {otp}\n")
         return False

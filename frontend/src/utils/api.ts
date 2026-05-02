@@ -7,7 +7,18 @@
 //   - Typed request/response helpers
 //   - Error handling with user-friendly messages
 
-const BASE_URL = 'http://127.0.0.1:8000';
+const BASE_URL = 'http://localhost:8000';
+
+export async function checkPresence(): Promise<{ presence: boolean }> {
+  try {
+    const res = await fetch(`${BASE_URL}/check-presence`);
+    if (!res.ok) return { presence: true };
+    return await res.json();
+  } catch {
+    return { presence: true };
+  }
+}
+
 // ── Token Management ─────────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'legaledge_token';
@@ -375,4 +386,26 @@ export async function fetchProfile(): Promise<any | null> {
   } catch {
     return null;
   }
+}
+
+/** Play a specific track number */
+export async function playAudio(track: number): Promise<void> {
+  try {
+    // Send a POST request to play the audio track
+    await fetch(`${BASE_URL}/play-audio?track=${track}`, { method: 'POST' });
+  } catch {
+    // Silent fail
+  }
+}
+export type AudioAction = 'ACCESS_PORTAL' | 'AUTH_SUCCESS' | 'AUTH_FAILURE' | 'REG_SUCCESS' | 'SCAN_CARD' | 'WELCOME';
+
+export async function playAudioByAction(action: AudioAction): Promise<void> {
+  const lang = localStorage.getItem('i18nextLng') || 'en';
+  const mapping: any = {
+    'en': { 'ACCESS_PORTAL': 1, 'AUTH_SUCCESS': 2, 'AUTH_FAILURE': 3, 'REG_SUCCESS': 4, 'WELCOME': 5, 'SCAN_CARD': 6 },
+    'hi': { 'ACCESS_PORTAL': 7, 'AUTH_SUCCESS': 8, 'AUTH_FAILURE': 9, 'REG_SUCCESS': 10, 'WELCOME': 5, 'SCAN_CARD': 11 },
+    'ta': { 'ACCESS_PORTAL': 12, 'AUTH_SUCCESS': 13, 'AUTH_FAILURE': 14, 'REG_SUCCESS': 15, 'WELCOME': 5, 'SCAN_CARD': 16 }
+  };
+  const current = mapping[lang.startsWith('hi') ? 'hi' : lang.startsWith('ta') ? 'ta' : 'en'] || mapping['en'];
+  if (current[action]) await playAudio(current[action]);
 }

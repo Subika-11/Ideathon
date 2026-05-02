@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -43,7 +43,7 @@
   }
 
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Montserrat', sans-serif;
   }
 
   .font-montserrat {
@@ -106,3 +106,37 @@
   border-radius: 20px;
 }
 ::-webkit-scrollbar-thumb:hover { background: #10b981; }
+
+/* Custom Leaflet Styling */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  transition: all 0.2s ease !important;
+}
+
+.leaflet-control-zoom-in:hover,
+.leaflet-control-zoom-out:hover {
+  background-color: #334155 !important;
+  color: #10b981 !important;
+}
+
+.leaflet-container {
+  font-family: inherit !important;
+}
+
+.leaflet-bar a:first-child {
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+}
+
+.leaflet-bar a:last-child {
+  border-bottom-left-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
+}

@@ -26,6 +26,7 @@ from app.services.sms_service import send_sms
 from app.services.auth_service import (
     hash_password, verify_password, create_access_token,
 )
+from app.routers.rfid import trigger_motor_on_otp_verified
 
 logger = logging.getLogger("legaledge.auth")
 
@@ -76,7 +77,14 @@ def verify_otp_route(body: VerifyOTPRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
 
     logger.info(f"OTP verified for +91{body.phone}")
-    return {"success": True}
+    
+    # Trigger motor on ESP32 after OTP verification
+    motor_triggered = trigger_motor_on_otp_verified()
+    
+    return {
+        "success": True,
+        "motor_triggered": motor_triggered
+    }
 
 
 # ── SAVE PROFILE (SIGNUP) ────────────────────────────────────────────────────

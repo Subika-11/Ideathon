@@ -1,33 +1,3 @@
-/**
- * LocateKiosk.tsx
- * Offline-first kiosk locator for Legal Edge pilot deployment.
- * Covers Coimbatore & Tirupur districts.
- *
- * FIX (v3 → v4):
- * The Google Maps Embed API returns 403 when the API key is the public demo
- * key and the request comes from an unlisted domain (e.g. localhost). This
- * version adds an OpenStreetMap / Leaflet fallback that requires zero API key
- * and zero quota. Map selection logic:
- *
- *   1. VITE_GOOGLE_MAPS_API_KEY is set in .env.local
- *      → Google Maps Embed iframe (production path, full directions support)
- *   2. Key is absent / is the demo key
- *      → OpenStreetMap iframe via openstreetmap.org/export/embed.html
- *        (no key, no quota, free for development and light production use)
- *
- * The OSM embed shows the current kiosk pin at the correct coordinates.
- * When a destination is selected it falls back to showing the destination pin
- * (OSM's public embed doesn't support multi-point directions; for turn-by-turn
- * the user taps "Get Directions" which opens Google Maps in a new tab).
- *
- * Architecture:
- * - All kiosk data is static JSON (works with zero internet)
- * - Current kiosk is identified by KIOSK_ID env var or URL param ?kiosk=<id>
- *   Falls back to a selector when running in dev/demo mode
- * - Haversine formula sorts nearby kiosks by distance.
- * - NavigationPanel deep-links to Google Maps directions for the chosen mode.
- */
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -35,7 +5,7 @@ import {
   Navigation2, Shield, X, Car, Bus, PersonStanding,
   ExternalLink, Route, Download,
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -377,27 +347,36 @@ function KioskMap({
     const isSelected = selectedKiosk?.id === k.id;
     const isCurrent = currentKiosk.id === k.id;
     
-    let colorClass = "bg-sky-400 border-white/70";
-    let scaleClass = "";
-    let animationClass = "";
+    let color = "#38bdf8"; // sky-400
+    let scale = "scale(1)";
+    let zIndex = 1;
 
     if (isCurrent) {
-        colorClass = "bg-amber-400 border-white";
-        scaleClass = "scale-110";
-        animationClass = "animate-pulse";
+        color = "#fbbf24"; // amber-400
+        scale = "scale(1.1)";
+        zIndex = 10;
     }
     if (isSelected) {
-        colorClass = "bg-emerald-400 border-white";
-        scaleClass = "scale-125";
+        color = "#10b981"; // emerald-400
+        scale = "scale(1.3)";
+        zIndex = 100;
     }
 
-    const html = `<div class="w-4 h-4 rounded-full border-[3px] shadow-lg transition-all ${colorClass} ${scaleClass} ${animationClass}"></div>`;
+    const html = `
+      <div class="relative transition-all duration-300" style="transform: ${scale}; z-index: ${zIndex};">
+        <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+          <path d="M16 42C16 42 32 28.3265 32 16C32 7.16344 24.8366 0 16 0C7.16344 0 0 7.16344 0 16C0 28.3265 16 42 16 42Z" fill="${color}"/>
+          <circle cx="16" cy="16" r="6" fill="white"/>
+        </svg>
+        ${isCurrent ? '<div class="absolute -inset-1 rounded-full bg-amber-400/20 animate-ping"></div>' : ''}
+      </div>
+    `;
     
     return L.divIcon({
       html,
       className: 'bg-transparent',
-      iconSize: [16, 16],
-      iconAnchor: [8, 8]
+      iconSize: [32, 42],
+      iconAnchor: [16, 42]
     });
   };
 
@@ -425,11 +404,12 @@ function KioskMap({
               zoomControl={false}
           >
               <TileLayer
-                  url={isOnline ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : "/tiles/{z}/{x}/{y}.png"}
-                  attribution='&copy; OpenStreetMap contributors'
-                  minZoom={8}
-                  maxZoom={12}
+                  url={isOnline ? "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" : "/tiles/{z}/{x}/{y}.png"}
+                  attribution='&copy; Google Maps'
+                  minZoom={3}
+                  maxZoom={20}
               />
+              <ZoomControl position="bottomright" />
               <MapBounds currentKiosk={currentKiosk} selectedKiosk={selectedKiosk} />
               
               {KIOSK_DATA.filter(k => k.active).map(k => (
@@ -450,8 +430,10 @@ function KioskMap({
                           [selectedKiosk.lat, selectedKiosk.lng]
                       ]}
                       color="#10b981"
-                      weight={3}
-                      dashArray="6, 8"
+                      weight={5}
+                      opacity={0.8}
+                      lineCap="round"
+                      dashArray="1, 12"
                   />
               )}
           </MapContainer>

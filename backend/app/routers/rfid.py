@@ -33,6 +33,7 @@ _presence_detected: bool = True  # Default to True so it doesn't start black if 
 _lock = threading.Lock()
 _reader_thread: Optional[threading.Thread] = None
 _stop_event = threading.Event()
+_ser: Optional[serial.Serial] = None  # Persistent serial connection for writing
 
 
 def _find_esp32_port() -> Optional[str]:
@@ -70,7 +71,7 @@ def _serial_reader():
     Continuously tries to open the serial port, reads UIDs, and retries on failure.
     Recovers automatically after the Arduino sketch is uploaded and port reopens.
     """
-    global _latest_uid, _presence_detected
+    global _latest_uid, _presence_detected, _ser
 
     while not _stop_event.is_set():
         port = _find_esp32_port()
@@ -79,56 +80,57 @@ def _serial_reader():
             _stop_event.wait(5)
             continue
 
-        ser = None
         try:
-            ser = serial.Serial(port, baudrate=115200, timeout=1)
-            logger.info(f"Serial port opened: {port} @ 115200 baud")
-            
-            while not _stop_event.is_set():
-                try:
-                    line = ser.readline()
-                    if not line:
-                        continue
-                    
-                    raw = line.decode("utf-8", errors="ignore").strip()
-                    if not raw:
-                        continue
+            with serial.Serial(port, baudrate=115200, timeout=1) as ser:
+                with _lock:
+                    _ser = ser
+                logger.info(f"Serial port opened: {port} @ 115200 baud")
+                
+                while not _stop_event.is_set():
+                    try:
+                        line = ser.readline()
+                        if not line:
+                            continue
+                        
+                        raw = line.decode("utf-8", errors="ignore").strip()
+                        if not raw:
+                            continue
 
-                    # Robust keyword detection
-                    is_on = any(kw in raw for kw in ["PRESENCE:ON", "SCREEN ON", "Person Detected"])
-                    is_off = any(kw in raw for kw in ["PRESENCE:OFF", "SCREEN OFF", "No Person"])
+                        # Robust keyword detection
+                        is_on = any(kw in raw for kw in ["PRESENCE:ON", "SCREEN ON", "Person Detected"])
+                        is_off = any(kw in raw for kw in ["PRESENCE:OFF", "SCREEN OFF", "No Person"])
 
-                    if is_on:
-                        with _lock:
-                            if not _presence_detected:
-                                logger.info(">>> Screen Wake Up (Person Detected)")
-                                _presence_detected = True
-                    elif is_off:
-                        with _lock:
-                            if _presence_detected:
-                                logger.info(">>> Screen Power Save (No Person)")
-                                _presence_detected = False
-                    elif "RFID:" in raw:
-                        uid = raw.split("RFID:")[1].strip()
-                        with _lock:
-                            _latest_uid = uid
-                        logger.info(f"RFID card scanned: {uid}")
-                    elif _is_valid_uid(raw):
-                        uid = ":".join(p.upper() for p in raw.split(":")[:4])
-                        with _lock:
-                            _latest_uid = uid
-                        logger.info(f"RFID card scanned: {uid}")
-                    else:
-                        # Log other messages for debugging
-                        if "RFID Scanner Ready" not in raw and "--- LegalEdge" not in raw:
-                            logger.info(f"ESP32 Message: {raw}")
+                        if is_on:
+                            with _lock:
+                                if not _presence_detected:
+                                    logger.info(">>> Screen Wake Up (Person Detected)")
+                                    _presence_detected = True
+                        elif is_off:
+                            with _lock:
+                                if _presence_detected:
+                                    logger.info(">>> Screen Power Save (No Person)")
+                                    _presence_detected = False
+                        elif "RFID:" in raw:
+                            uid = raw.split("RFID:")[1].strip()
+                            with _lock:
+                                _latest_uid = uid
+                            logger.info(f"RFID card scanned: {uid}")
+                        elif _is_valid_uid(raw):
+                            uid = ":".join(p.upper() for p in raw.split(":")[:4])
+                            with _lock:
+                                _latest_uid = uid
+                            logger.info(f"RFID card scanned: {uid}")
+                        else:
+                            # Log other messages for debugging
+                            if "RFID Scanner Ready" not in raw and "--- LegalEdge" not in raw:
+                                logger.info(f"ESP32 Message: {raw}")
 
-                except serial.SerialException as e:
-                    logger.warning(f"Serial read error on {port}: {e}. Reconnecting...")
-                    break
-                except Exception as e:
-                    logger.error(f"Unexpected error during read: {e}")
-                    _stop_event.wait(1)
+                    except serial.SerialException as e:
+                        logger.warning(f"Serial read error on {port}: {e}. Reconnecting...")
+                        break
+                    except Exception as e:
+                        logger.error(f"Unexpected error during read: {e}")
+                        _stop_event.wait(1)
 
         except serial.SerialException as e:
             if "PermissionError" in str(e) or "Access is denied" in str(e):
@@ -137,9 +139,9 @@ def _serial_reader():
                 logger.warning(f"Cannot open {port}: {e}")
             _stop_event.wait(3)
         finally:
-            if ser and ser.is_open:
-                ser.close()
-                logger.info(f"Serial port {port} closed")
+            with _lock:
+                _ser = None
+            logger.info(f"Serial connection to {port} released")
 
 
 def start_rfid_reader():
@@ -246,14 +248,43 @@ async def update_presence(payload: dict = Body(...)):
  
 @router.post("/play-audio")
 async def play_audio(track: int):
-    """Trigger audio on the wireless ESP32."""
-    esp32_audio_url = f"http://172.20.10.3/play?track={track}"
+    """Trigger audio on the ESP32 via the active Serial connection."""
+    global _ser
     
-    async with httpx.AsyncClient() as client:
-        try:
-            await client.get(esp32_audio_url, timeout=1.0)
-            logger.info(f"Wireless Audio Triggered: Track {track}")
-            return {"status": "success", "mode": "wireless"}
-        except Exception as e:
-            logger.error(f"Wireless Audio Failed: {e}")
-            return {"status": "error", "message": str(e)}
+    with _lock:
+        if _ser and _ser.is_open:
+            try:
+                command = f"{track}\n"
+                _ser.write(command.encode("utf-8"))
+                logger.info(f"Serial Audio Triggered: Track {track}")
+                return {"status": "success", "mode": "serial"}
+            except Exception as e:
+                logger.error(f"Serial Audio Write Failed: {e}")
+                return {"status": "error", "message": f"Serial write error: {e}"}
+        else:
+            logger.warning(f"Serial Audio Failed: No active serial connection for track {track}")
+            return {"status": "error", "message": "Serial port not open"}
+
+
+def trigger_motor_on_otp_verified() -> bool:
+    """
+    Send OTP_VERIFIED command to ESP32 to trigger motor after OTP verification.
+    Called from auth.py after successful OTP verification.
+    Returns True if command sent successfully, False otherwise.
+    """
+    global _ser
+    
+    with _lock:
+        if _ser and _ser.is_open:
+            try:
+                command = "OTP_VERIFIED\n"
+                _ser.write(command.encode("utf-8"))
+                logger.info("✅ OTP_VERIFIED command sent to ESP32 - Motor triggered")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Failed to send OTP_VERIFIED command: {e}")
+                return False
+        else:
+            logger.warning("⚠️ Serial port not open - Motor trigger failed")
+            return False
+
